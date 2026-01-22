@@ -41,12 +41,14 @@ nav a:hover {
     justify-content: center;
     align-items: center;
 }
-.navbar-container ul{
+
+.navbar-container ul {
     display: flex;
     flex-direction: row;
     justify-content: center;
     align-items: center;
 }
+
 .navbar-brand {
     font-family: 'Roboto Condensed', Arial, sans-serif;
     font-size: 1.7rem;
@@ -56,6 +58,12 @@ nav a:hover {
     letter-spacing: 1px;
 }
 
+.linkedin {
+    width: 100px;
+    height: 50px;
+    align-items: center;
+}
+
 /* Contenido principal */
 main {
     max-width: 1100px;
@@ -63,7 +71,7 @@ main {
     background: #fff;
     padding: 2rem;
     border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
 /* Hero */
@@ -71,12 +79,14 @@ main {
     text-align: center;
     margin-bottom: 2.5rem;
 }
+
 .hero h1 {
     font-size: 2.3rem;
     color: #222;
     margin-bottom: 0.7rem;
     font-family: 'Roboto Condensed', Arial, sans-serif;
 }
+
 .hero p {
     font-size: 1.15rem;
     color: #555;
@@ -93,16 +103,17 @@ main {
 .project-card {
     background: #fafafa;
     border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
     padding: 1.5rem 1rem 1.2rem 1rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     transition: transform 0.15s, box-shadow 0.15s;
 }
+
 .project-card:hover {
     transform: translateY(-6px) scale(1.025);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.13);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.13);
 }
 
 .project-image {
@@ -142,6 +153,7 @@ main {
     font-size: 1rem;
     margin-bottom: 15px;
 }
+
 .project-link:hover {
     background: #e67c00;
 }
@@ -176,23 +188,29 @@ footer {
     main {
         padding: 1rem;
     }
+
     .project-catalog {
         gap: 1.2rem;
     }
 }
+
 @media (max-width: 600px) {
     main {
         padding: 0.5rem;
     }
+
     .hero h1 {
         font-size: 1.3rem;
     }
+
     section h2 {
         font-size: 1.1rem;
     }
+
     .project-card {
         padding: 1rem 0.5rem 0.8rem 0.5rem;
     }
+
     .project-image {
         max-width: 100%;
         height: 110px;
