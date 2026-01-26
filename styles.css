@@ -183,6 +183,36 @@ footer {
     margin-top: 2rem;
 }
 
+.presentacion {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+
+    background-color: #fff;
+    color: #222;
+    padding: 2rem;
+    max-width: 1100px;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+
+    margin: 2rem auto;
+}
+
+.presentacion div {
+    margin: 2rem;
+}
+
+.imgCV {
+    border-radius: 12px;
+    background: #e0e0e0;
+    background-image: url('img/fotoCV.jfif');
+    background-size: cover;
+    background-position: center;
+    width: 250px;
+    height: 150px;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
     main {
