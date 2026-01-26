@@ -21,6 +21,9 @@ nav {
     background: #333;
     padding: 0.5rem 0;
     text-align: center;
+    position: fixed;
+    top: 0;
+    width: 100%;
 }
 
 nav a {
@@ -196,6 +199,7 @@ footer {
     border-radius: 12px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 
+    margin-top: 3rem;
     margin: 2rem auto;
 }
 
