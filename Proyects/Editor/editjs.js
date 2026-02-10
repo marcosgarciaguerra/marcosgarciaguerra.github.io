@@ -11,7 +11,6 @@ require(['vs/editor/editor.main'], function () {
         scrollBeyondLastLine: false
     };
 
-    // 1. Inicializar HTML (Usamos backticks `` para permitir múltiples líneas en el valor inicial)
     const htmlEditor = monaco.editor.create(document.getElementById('html-editor'), {
         ...editorConfig,
         value: `<p>Hola Mundo</p>`,
@@ -75,7 +74,6 @@ require(['vs/editor/editor.main'], function () {
         doc.close();
     }
 
-    // Eventos con un pequeño "debounce" (espera) para no recargar a cada tecla
     let timeout;
     function onCodeChange() {
         clearTimeout(timeout);
@@ -86,6 +84,25 @@ require(['vs/editor/editor.main'], function () {
     cssEditor.onDidChangeModelContent(onCodeChange);
     jsEditor.onDidChangeModelContent(onCodeChange);
 
-    // Carga inicial
+    document.querySelector(".download").addEventListener("click", function () {
+        const iframe = document.getElementById('preview');
+
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        let htmlContent = doc.documentElement.outerHTML;
+
+        const fullHtml = `<!DOCTYPE html>\n${htmlContent}`;
+        const blob = new Blob([fullHtml], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+
+        a.href = url;
+        a.download = 'output.html';
+        document.body.appendChild(a);
+        a.click();
+
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
     updatePreview();
 });
