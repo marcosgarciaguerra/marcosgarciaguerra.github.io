@@ -1,0 +1,72 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    display: flex;
+    flex-direction: row;
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #1e1e1e;
+    overflow: hidden;
+}
+
+.barra {
+    width: 5vw;
+    background-color: aqua;
+}
+
+.l1,
+.l2 {
+    display: flex;
+    flex-direction: row;
+    height: 50vh;
+    border: 0;
+    width: 95vw;
+}
+
+.editor-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #333;
+    min-width: 0;
+    /* Importante para flexbox y monaco */
+}
+
+.label {
+    background: #252526;
+    color: #ddd;
+    padding: 8px 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.label span {
+    opacity: 0.5;
+    font-size: 0.7rem;
+}
+
+.monaco-container {
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+}
+
+.preview-container {
+    height: 50vh;
+    background: white;
+    position: relative;
+}
+
+iframe {
+    width: 50%;
+    height: 100%;
+    border: none;
+    display: block;
+    background-color: aliceblue;
+}
