@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor Monaco Pro</title>
+    <link rel="stylesheet" href="webeditor.css">
+</head>
+
+<body>
+    <div class="barra">
+        <p>A</p>
+
+    </div>
+    <div class="editor">
+        <div class="l1">
+            <div class="editor-box">
+                <div class="label">HTML <span>&lt;/&gt;</span></div>
+                <div id="html-editor" class="monaco-container"></div>
+            </div>
+            <div class="editor-box">
+                <div class="label">CSS <span>#</span></div>
+                <div id="css-editor" class="monaco-container"></div>
+            </div>
+        </div>
+
+        <div class="l2">
+            <div class="editor-box">
+                <div class="label">JS <span>{ }</span></div>
+                <div id="js-editor" class="monaco-container"></div>
+            </div>
+            <iframe id="preview"></iframe>
+        </div>
+    </div>
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+
+    <script src="editjs.js"></script>
+</body>
+
+</html>
