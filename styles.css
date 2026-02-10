@@ -250,8 +250,9 @@ footer {
     background-image: url('img/fotoCV.jfif');
     background-size: cover;
     background-position: center;
-    width: 250px;
-    height: 150px;
+    width: 60rem;
+    height: 10rem;
+    max-width: 200px;
 }
 
 .contacto {
