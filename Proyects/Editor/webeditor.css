@@ -13,8 +13,33 @@ body {
 }
 
 .barra {
-    width: 5vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+
+    width: 3vw;
     background-color: aqua;
+}
+
+.download {
+    background-image: url("https://cdn-icons-png.flaticon.com/512/3580/3580085.png");
+    background-size: cover;
+    background-color: rgba(0, 0, 0, 0);
+    width: 2vw;
+    height: 2vw;
+    border: 0;
+    margin: 10px;
+}
+
+.git {
+    background-image: url("https://upload.wikimedia.org/wikipedia/commons/c/c2/GitHub_Invertocat_Logo.svg");
+    background-size: cover;
+    background-color: rgba(0, 0, 0, 0);
+    width: 2vw;
+    height: 2vw;
+    border: 0;
+    margin: 10px;
 }
 
 .l1,
@@ -23,7 +48,7 @@ body {
     flex-direction: row;
     height: 50vh;
     border: 0;
-    width: 95vw;
+    width: 97vw;
 }
 
 .editor-box {

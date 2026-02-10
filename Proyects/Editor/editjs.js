@@ -40,8 +40,7 @@ require(['vs/editor/editor.main'], function () {
 
         const iframe = document.getElementById('preview');
 
-        // Método Seguro: Abrir el documento del iframe y escribir en él
-        // Esto es mucho más seguro que usar srcdoc="..." cuando hay código complejo
+
         const doc = iframe.contentDocument || iframe.contentWindow.document;
 
         doc.open();
