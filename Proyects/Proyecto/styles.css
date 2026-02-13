@@ -1,0 +1,368 @@
+/* Compiled CSS from SASS Modules */
+
+/* Base & Reset */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Arial', sans-serif;
+    background-color: #1e272e;
+    color: #f1f2f6;
+    line-height: 1.6;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    margin: 0;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Layout - Header */
+.header {
+    background-color: rgba(47, 53, 66, 0.95);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.header .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 80px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.header .nav__logo {
+    color: #ff4757;
+    font-size: 2rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+.header .nav__menu {
+    display: flex;
+    gap: 20px;
+}
+
+.header .nav__link {
+    color: #f1f2f6;
+    font-weight: 500;
+    transition: color 0.3s;
+    position: relative;
+}
+
+.header .nav__link:hover,
+.header .nav__link--active {
+    color: #ff4757;
+}
+
+.header .nav__link--active::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #ff4757;
+}
+
+/* Layout - Footer */
+.footer {
+    background-color: #12181c;
+    padding: 2rem;
+    text-align: center;
+    margin-top: auto;
+}
+
+.footer__text {
+    opacity: 0.7;
+    font-size: 0.9rem;
+}
+
+/* Layout - Main */
+.main {
+    width: 100%;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.container--with-sidebar {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 2rem;
+    align-items: start;
+}
+
+@media (max-width: 768px) {
+    .container--with-sidebar {
+        grid-template-columns: 1fr;
+    }
+}
+
+.section {
+    padding: 4rem 0;
+}
+
+.section--exercises {
+    text-align: center;
+}
+
+.section__title {
+    margin-bottom: 3rem;
+    font-size: 2.5rem;
+    color: #ff4757;
+    text-align: center;
+}
+
+/* Layout - Sidebar */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.aside {
+    background-color: #ff4757;
+    padding: 3rem 1rem;
+    text-align: center;
+    margin-top: 2rem;
+}
+
+/* Components - Buttons */
+.button {
+    display: inline-block;
+    background-color: #ff4757;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+    text-transform: uppercase;
+    font-weight: bold;
+    text-align: center;
+}
+
+.button:hover {
+    background-color: #e03646;
+}
+
+.button--cta {
+    font-size: 1.2rem;
+}
+
+.button--small {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+    text-decoration: none;
+}
+
+/* Components - Cards */
+.card {
+    background-color: #35404d;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card__title {
+    color: #ff4757;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+}
+
+.card__description {
+    margin-bottom: 1rem;
+    flex-grow: 1;
+}
+
+/* Components - Hero */
+.hero {
+    height: 80vh;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80');
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.hero__content {
+    max-width: 800px;
+    padding: 20px;
+}
+
+.hero__title {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+}
+
+.hero__text {
+    font-size: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Components - Banner */
+.banner {
+    max-width: 800px;
+    margin: 0 auto;
+    color: white;
+}
+
+.banner__title {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.banner__text {
+    font-size: 1.2rem;
+}
+
+/* Components - Grid */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+/* Components - Widgets */
+.widget {
+    background-color: #35404d;
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+.widget__title {
+    color: #ff4757;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    border-bottom: 1px solid rgba(241, 242, 246, 0.1);
+    padding-bottom: 0.5rem;
+}
+
+.widget__text {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.list__item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(241, 242, 246, 0.05);
+}
+
+.list__item:last-child {
+    border-bottom: none;
+}
+
+.list__link {
+    transition: color 0.2s;
+}
+
+.list__link:hover {
+    color: #ff4757;
+}
+
+.list--bullets {
+    list-style: disc;
+    padding-left: 1.5rem;
+}
+
+.article {
+    background-color: #35404d;
+    padding: 2rem;
+    border-radius: 10px;
+}
+
+.article__title {
+    color: #ff4757;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.article__meta {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.article__image {
+    width: 100%;
+    height: 400px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.article__content {
+    margin-bottom: 2rem;
+}
+
+.article__content h3 {
+    color: #ff4757;
+    margin: 1.5rem 0 1rem;
+    font-size: 1.5rem;
+}
+
+.article__content p {
+    margin-bottom: 1rem;
+}
+
+.badge {
+    background-color: #ff4757;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.profile {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.profile__name {
+    margin: 0;
+}
+
+.profile__role {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin: 0;
+}

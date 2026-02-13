@@ -1,0 +1,10 @@
+// Grid System
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    width: 100%;
+
+    @include container;
+    padding: 0; // Remove container padding when inside standard container
+}

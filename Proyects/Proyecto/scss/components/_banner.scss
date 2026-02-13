@@ -1,0 +1,15 @@
+// Banner (Ads)
+.banner {
+    max-width: 800px;
+    margin: 0 auto;
+    color: white;
+
+    &__title {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    &__text {
+        font-size: 1.2rem;
+    }
+}

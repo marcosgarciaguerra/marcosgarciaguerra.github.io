@@ -1,0 +1,25 @@
+// Hero
+.hero {
+    height: 80vh;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80');
+    background-size: cover;
+    background-position: center;
+    @include flex-center;
+    text-align: center;
+
+    &__content {
+        max-width: 800px;
+        padding: 20px;
+    }
+
+    &__title {
+        font-size: 3.5rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+    }
+
+    &__text {
+        font-size: 1.5rem;
+        margin-bottom: 2rem;
+    }
+}

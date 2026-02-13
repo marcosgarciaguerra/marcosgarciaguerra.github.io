@@ -1,0 +1,192 @@
+// Variables
+$primary-color: #ff4757;
+$secondary-color: #2f3542;
+$text-color: #f1f2f6;
+$bg-color: #1e272e;
+$font-family: 'Arial', sans-serif;
+$nav-height: 80px;
+
+// Mixins
+@mixin flex-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+@mixin card-style {
+    background-color: lighten($bg-color, 10%);
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease;
+
+    &:hover {
+        transform: translateY(-5px);
+    }
+}
+
+// Global Styles
+body {
+    margin: 0;
+    padding: 0;
+    font-family: $font-family;
+    background-color: $bg-color;
+    color: $text-color;
+    line-height: 1.6;
+}
+
+h1,
+h2,
+h3 {
+    margin: 0;
+}
+
+// Header & Navigation
+header {
+    background-color: rgba($secondary-color, 0.95);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+
+    nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: $nav-height;
+        padding: 0 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+
+        h1 {
+            color: $primary-color;
+            font-size: 2rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        .menu-links {
+            display: flex;
+            gap: 20px;
+
+            a {
+                color: $text-color;
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.3s;
+
+                &:hover {
+                    color: $primary-color;
+                }
+            }
+        }
+    }
+}
+
+// Hero Section
+.hero-container {
+    height: 80vh;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80');
+    background-size: cover;
+    background-position: center;
+    @include flex-center;
+    text-align: center;
+
+    .hero-content {
+        max-width: 800px;
+        padding: 20px;
+
+        h2 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+
+        p {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .cta-button {
+            background-color: $primary-color;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+            text-transform: uppercase;
+            font-weight: bold;
+
+            &:hover {
+                background-color: darken($primary-color, 10%);
+            }
+        }
+    }
+}
+
+// Exercises Section
+.ejercicios-section {
+    padding: 4rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+
+    h2 {
+        margin-bottom: 3rem;
+        font-size: 2.5rem;
+        color: $primary-color;
+    }
+
+    .ejercicios-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+
+        .ejercicio-card {
+            @include card-style;
+
+            h3 {
+                color: $primary-color;
+                margin-bottom: 1rem;
+            }
+        }
+    }
+}
+
+// Advertising Section
+.publicidad-section {
+    background-color: $primary-color;
+    padding: 3rem 1rem;
+    text-align: center;
+    margin-top: 2rem;
+
+    .ad-banner {
+        max-width: 800px;
+        margin: 0 auto;
+        color: white;
+
+        h3 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            font-size: 1.2rem;
+        }
+    }
+}
+
+// Footer
+footer {
+    background-color: darken($bg-color, 5%);
+    padding: 2rem;
+    text-align: center;
+    margin-top: auto;
+
+    p {
+        opacity: 0.7;
+        font-size: 0.9rem;
+    }
+}

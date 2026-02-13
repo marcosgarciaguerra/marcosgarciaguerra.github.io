@@ -1,0 +1,24 @@
+// Mixins
+@mixin flex-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+@mixin card-style {
+    background-color: $card-bg-color;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease;
+
+    &:hover {
+        transform: translateY(-5px);
+    }
+}
+
+@mixin container {
+    max-width: $container-width;
+    margin: 0 auto;
+    padding: 0 2rem;
+}

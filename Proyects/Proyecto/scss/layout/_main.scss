@@ -1,0 +1,36 @@
+// Main Content
+.main {
+    width: 100%;
+}
+
+.container {
+    max-width: $container-width;
+    margin: 0 auto;
+    padding: 2rem;
+
+    &--with-sidebar {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 2rem;
+        align-items: start;
+
+        @media (max-width: 768px) {
+            grid-template-columns: 1fr;
+        }
+    }
+}
+
+.section {
+    padding: 4rem 0;
+
+    &--exercises {
+        text-align: center;
+    }
+
+    &__title {
+        margin-bottom: 3rem;
+        font-size: 2.5rem;
+        color: $primary-color;
+        text-align: center;
+    }
+}

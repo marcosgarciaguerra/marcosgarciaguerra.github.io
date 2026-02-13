@@ -1,0 +1,30 @@
+// Buttons
+.button {
+    display: inline-block;
+    background-color: $primary-color;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+    text-transform: uppercase;
+    font-weight: bold;
+    text-align: center;
+
+    &:hover {
+        background-color: darken($primary-color, 10%);
+    }
+
+    &--cta {
+        font-size: 1.2rem;
+    }
+
+    &--small {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+        margin-top: 1rem;
+        text-decoration: none;
+    }
+}
