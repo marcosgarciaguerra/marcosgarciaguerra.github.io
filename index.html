@@ -1,247 +1,327 @@
 <!DOCTYPE html>
 
-<html class="scroll-smooth" lang="es"><head>
+<html class="dark" lang="es"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Marcos García | Portfolio</title>
-<!-- BEGIN: Scripts and Fonts -->
+<title>Marcos Garcia | Portfolio</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;family=Fira+Code:wght@400;500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&amp;family=Fira+Code:wght@400;500&amp;display=swap" rel="stylesheet"/>
-<script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              black: '#0a0a0a',
-              dark: '#121212',
-              accent: '#3b82f6', // Electric Blue
-              cyber: '#bef264',  // Cyber Lime
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed": "#002113",
+                    "surface-tint": "#adc6ff",
+                    "on-secondary-fixed-variant": "#354e00",
+                    "surface-container-low": "#1c1b1b",
+                    "surface-container-high": "#2a2a2a",
+                    "primary-fixed-dim": "#adc6ff",
+                    "on-background": "#e5e2e1",
+                    "inverse-surface": "#e5e2e1",
+                    "surface-container": "#201f1f",
+                    "on-surface-variant": "#c2c6d6",
+                    "primary-container": "#4d8eff",
+                    "error": "#ffb4ab",
+                    "tertiary-container": "#00a572",
+                    "surface-container-highest": "#353534",
+                    "primary": "#adc6ff",
+                    "secondary-fixed-dim": "#a4d64c",
+                    "primary-fixed": "#d8e2ff",
+                    "secondary-fixed": "#bff365",
+                    "surface-bright": "#3a3939",
+                    "on-tertiary": "#003824",
+                    "surface-variant": "#353534",
+                    "tertiary": "#4edea3",
+                    "surface-dim": "#131313",
+                    "on-primary": "#002e6a",
+                    "on-secondary-container": "#1e2f00",
+                    "inverse-on-surface": "#313030",
+                    "on-tertiary-fixed-variant": "#005236",
+                    "surface": "#131313",
+                    "surface-container-lowest": "#0e0e0e",
+                    "background": "#131313",
+                    "on-primary-container": "#00285d",
+                    "on-error": "#690005",
+                    "on-primary-fixed-variant": "#004395",
+                    "outline-variant": "#424754",
+                    "on-secondary": "#233600",
+                    "outline": "#8c909f",
+                    "on-tertiary-container": "#00311f",
+                    "on-error-container": "#ffdad6",
+                    "on-secondary-fixed": "#131f00",
+                    "tertiary-fixed": "#6ffbbe",
+                    "secondary-container": "#719e13",
+                    "inverse-primary": "#005ac2",
+                    "on-primary-fixed": "#001a42",
+                    "secondary": "#a4d64c",
+                    "on-surface": "#e5e2e1",
+                    "tertiary-fixed-dim": "#4edea3",
+                    "error-container": "#93000a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"],
+                    "mono": ["Fira Code"]
             }
           },
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['Fira Code', 'monospace'],
-          }
-        }
+        },
       }
-    }
-  </script>
-<!-- END: Scripts and Fonts -->
-<!-- BEGIN: Custom Styles -->
-<style data-purpose="layout-patterns">
-    /* Subtle Grid Background */
-    .bg-grid {
-      background-size: 40px 40px;
-      background-image: 
-        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-    }
-    
-    /* Glow Effects */
-    .glow-hover:hover {
-      box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
-    }
-    
-    .text-glow {
-      text-shadow: 0 0 10px rgba(190, 242, 100, 0.5);
-    }
-
-    /* Selection Color */
-    ::selection {
-      background-color: #bef264;
-      color: #0a0a0a;
-    }
-  </style>
-<!-- END: Custom Styles -->
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-nav {
+            background-color: rgba(19, 19, 19, 0.6);
+            backdrop-filter: blur(20px);
+        }
+        .text-gradient {
+            background: linear-gradient(to right, #adc6ff, #4d8eff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        html { scroll-behavior: smooth; }
+    </style>
 </head>
-<body class="bg-brand-black text-gray-200 font-sans selection:bg-brand-cyber">
-<!-- BEGIN: Sticky Header -->
-<header class="fixed top-0 w-full z-50 bg-brand-black/80 backdrop-blur-md border-b border-white/10" data-purpose="main-navigation">
-<div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-<div class="text-2xl font-bold tracking-tighter text-white" data-purpose="logo">
-        MARCOS<span class="text-brand-accent">GARCÍA</span>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar Component -->
+<nav class="fixed top-0 w-full z-50 glass-nav shadow-2xl shadow-blue-900/10">
+<div class="max-w-7xl mx-auto px-8 py-6 flex justify-between items-center">
+<span class="text-xl font-bold tracking-tighter text-white font-headline">Marcos Garcia</span>
+<!-- Desktop Navigation -->
+<div class="hidden md:flex items-center space-x-8 font-headline tracking-tight">
+<a class="text-blue-400 border-b-2 border-blue-400 pb-1" href="#work">Proyectos</a>
+<a class="text-gray-400 hover:text-white transition-colors duration-500" href="#experience">Experiencia</a>
+<a class="text-gray-400 hover:text-white transition-colors duration-500" href="#about">Sobre mí</a>
+<a class="text-gray-400 hover:text-white transition-colors duration-500" href="#contact">Contacto</a>
 </div>
-<nav class="hidden md:flex space-x-8 text-sm font-medium uppercase tracking-widest">
-<a class="hover:text-brand-accent transition-colors" href="#inicio">Inicio</a>
-<a class="hover:text-brand-accent transition-colors" href="#proyectos">Proyectos</a>
-<a class="hover:text-brand-accent transition-colors" href="#trayectoria">Trayectoria</a>
-<a class="hover:text-brand-accent transition-colors" href="#contacto">Contacto</a>
+<a href="mailto:marcosgar272006@gmail.com" class="bg-primary-container text-on-primary-container px-6 py-2.5 rounded-xl font-semibold scale-95 active:scale-90 transition-transform hover:bg-primary transition-all duration-300">
+                Contrátame
+</a>
+</div>
 </nav>
-<!-- Mobile Menu Button (Simplified) -->
-<button class="md:hidden text-white">
-<svg class="h-6 w-6" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-<path d="M4 6h16M4 12h16m-7 6h7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
-</svg>
-</button>
-</div>
-</header>
-<!-- END: Sticky Header -->
 <main>
-<!-- BEGIN: Hero Section -->
-<section class="relative min-h-screen flex items-center pt-20 overflow-hidden bg-grid" data-purpose="hero-section" id="inicio">
-<div class="absolute top-1/4 -right-20 w-96 h-96 bg-brand-accent/10 rounded-full blur-[120px]"></div>
-<div class="absolute bottom-1/4 -left-20 w-96 h-96 bg-brand-cyber/5 rounded-full blur-[120px]"></div>
-<div class="max-w-7xl mx-auto px-6 relative z-10">
-<div class="flex flex-col lg:flex-row items-center gap-12">
-<div class="flex-1 order-2 lg:order-1">
-<span class="font-mono text-brand-cyber mb-4 block text-sm tracking-widest uppercase" data-purpose="intro-tag">_hola_mundo</span>
-<h1 class="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
-    Sobre <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-brand-cyber">mí</span>
+<!-- Hero Section -->
+<section class="relative min-h-screen flex items-center justify-center pt-24 overflow-hidden" id="about">
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(77,142,255,0.15),transparent_70%)]"></div>
+<div class="max-w-7xl mx-auto px-8 w-full grid md:grid-cols-2 gap-16 items-center relative z-10">
+<div class="space-y-8">
+<div class="inline-flex items-center gap-2 bg-surface-container-high px-4 py-2 rounded-full">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+<span class="font-mono text-xs text-secondary-fixed uppercase tracking-widest">Disponible para proyectos</span>
+</div>
+<h1 class="text-6xl md:text-8xl font-black font-headline tracking-tighter leading-none text-white">
+                        Marcos <br/> <span class="text-gradient">Garcia</span>
 </h1>
-<p class="text-lg md:text-xl text-gray-400 leading-relaxed mb-8">
-    Hola, soy <span class="text-white font-semibold">Marcos García</span>. Actualmente estudio Ingeniería Informática en la Universidad Camilo Jose Cela (Madrid, España). Me apasiona la programación y la tecnología, y estoy constantemente aprendiendo y experimentando con nuevas tecnologías. En este portfolio, puedes ver mi trayectoria y mis proyectos creados a lo largo de mi carrera.
-  </p>
-<div class="flex flex-wrap gap-4">
-<a class="px-8 py-4 bg-brand-accent text-white font-bold rounded-lg hover:bg-blue-600 transition-all transform hover:-translate-y-1 glow-hover" href="#proyectos">
-      Ver Proyectos
-    </a>
-<a class="px-8 py-4 border border-white/10 bg-white/5 text-white font-bold rounded-lg hover:bg-white/10 transition-all" href="#trayectoria">
-      Mi Trayectoria
-    </a>
+<p class="text-xl md:text-2xl text-on-surface-variant max-w-lg leading-relaxed font-light">
+                        Desarrollador Full Stack y Estudiante de Ingeniería Informática en la UCJC. Creando experiencias digitales premium mediante diseño intencional y código arquitectónico.
+                    </p>
+<div class="flex items-center gap-6 pt-4">
+<a class="bg-primary text-on-primary px-8 py-4 rounded-xl font-bold flex items-center gap-2 hover:scale-105 transition-transform" href="#work">
+                            Ver mis proyectos
+                            <span class="material-symbols-outlined">arrow_forward</span>
+</a>
+<a class="text-on-surface border-b border-outline-variant pb-1 hover:text-primary transition-colors" href="#contact">
+                            Hablemos
+                        </a>
 </div>
 </div>
-<div class="flex-shrink-0 order-1 lg:order-2 mb-8 lg:mb-0">
-<div class="relative">
-<div class="absolute -inset-1 bg-gradient-to-r from-brand-accent to-brand-cyber rounded-2xl blur opacity-25"></div>
-<img alt="Marcos García Portrait" class="relative w-64 h-64 md:w-80 md:h-80 object-cover rounded-2xl border-2 border-white/10 shadow-2xl" src="data:image/png;base64,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"/>
+<div class="relative group">
+<div class="absolute -inset-4 bg-gradient-to-tr from-primary/20 to-secondary/20 blur-3xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
+<div class="relative rounded-3xl overflow-hidden aspect-[4/5] shadow-2xl">
+<img alt="Retrato de Marcos García" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" src="assets/portrait.png"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Projects Section (Mis Proyectos) -->
+<section class="py-32 bg-surface-container-low" id="work">
+<div class="max-w-7xl mx-auto px-8">
+<div class="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
+<div class="space-y-4">
+<h2 class="text-5xl font-extrabold font-headline tracking-tight text-white">Mis Proyectos</h2>
+<p class="text-on-surface-variant text-lg max-w-md">Trabajos seleccionados que combinan complejidad técnica con valores estéticos de alto nivel.</p>
+</div>
+<div class="font-mono text-sm text-outline tracking-tighter">/01 PROYECTOS SELECCIONADOS</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Project Card: MarkOS (Linked to consoleapp) -->
+<div class="md:col-span-8 group bg-surface-container-high rounded-[2rem] overflow-hidden transition-all duration-500 hover:bg-surface-container-highest">
+<div class="grid md:grid-cols-2 h-full">
+<div class="p-12 flex flex-col justify-between">
+<div class="space-y-6">
+<div class="flex gap-2">
+<span class="px-3 py-1 bg-secondary-fixed text-on-secondary-fixed text-xs font-bold rounded-full">Diseño de OS</span>
+<span class="px-3 py-1 bg-surface-variant text-on-surface-variant text-xs font-mono rounded-full">Next.js</span>
+</div>
+<h3 class="text-4xl font-bold font-headline text-white">MarkOS</h3>
+<p class="text-on-surface-variant leading-relaxed">Una simulación de entorno de escritorio personalizada para la web, con gestión de ventanas, terminal propia e integración profunda del sistema.</p>
+</div>
+<div class="pt-8">
+<a href="Proyects/consoleapp/index.html" class="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all">
+                                        Ver Proyecto <span class="material-symbols-outlined">north_east</span>
+</a>
+</div>
+</div>
+<div class="bg-surface-container-highest h-full min-h-[400px] overflow-hidden">
+<img alt="Interfaz del Proyecto MarkOS" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" src="assets/markos.png"/>
+</div>
+</div>
+</div>
+<!-- Project Card: Prime Video Clone -->
+<div class="md:col-span-4 group bg-surface-container-high rounded-[2rem] overflow-hidden transition-all duration-500 hover:bg-surface-container-highest flex flex-col">
+<div class="h-64 overflow-hidden">
+<img alt="Maqueta de Prime Video Clone" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" src="assets/prime_video.png"/>
+</div>
+<div class="p-10 flex-1 flex flex-col justify-between">
+<div class="space-y-4">
+<h3 class="text-2xl font-bold font-headline text-white">Prime Video Clone</h3>
+<p class="text-on-surface-variant text-sm">Réplica de plataforma de streaming con todas las funciones: banners dinámicos y reproductores responsivos.</p>
+</div>
+<div class="pt-8 flex justify-between items-center">
+<a href="Proyects/PrimeVideo/index.html" class="text-primary font-bold flex items-center gap-2 hover:underline">Acceder <span class="material-symbols-outlined text-sm">open_in_new</span></a>
+<span class="material-symbols-outlined text-primary">play_circle</span>
+</div>
+</div>
+</div>
+<!-- Project Card: Calculadora -->
+<div class="md:col-span-4 group bg-surface-container-high rounded-[2rem] overflow-hidden transition-all duration-500 hover:bg-surface-container-highest">
+<div class="p-10 space-y-6">
+<h3 class="text-2xl font-bold font-headline text-white">Calculadora Pro</h3>
+<div class="aspect-square rounded-2xl overflow-hidden bg-surface-container-highest mb-4">
+<img alt="Interfaz de Calculadora" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="assets/calculator.png"/>
+</div>
+<a href="Proyects/webCalc/index.html" class="inline-flex items-center gap-2 text-primary font-bold hover:gap-4 transition-all">Abrir App <span class="material-symbols-outlined">calculate</span></a>
+</div>
+</div>
+<!-- Project Card: Digital Editor -->
+<div class="md:col-span-8 group bg-surface-container-high rounded-[2rem] overflow-hidden transition-all duration-500 hover:bg-surface-container-highest">
+<div class="grid md:grid-cols-2 h-full">
+<div class="p-10 flex flex-col justify-between order-2 md:order-1">
+<div class="space-y-6">
+<div class="flex gap-2">
+<span class="px-3 py-1 bg-surface-variant text-on-surface-variant text-xs font-mono rounded-full">Web Editor</span>
+<span class="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">New</span>
+</div>
+<h3 class="text-3xl font-bold font-headline text-white">Digital Code Editor</h3>
+<p class="text-on-surface-variant leading-relaxed">Editor de código minimalista diseñado para prototipado rápido directamente desde el navegador.</p>
+</div>
+<div class="pt-8">
+<a href="Proyects/Editor/webeditor.html" class="bg-primary/20 text-primary px-6 py-3 rounded-xl font-bold inline-flex items-center gap-2 hover:bg-primary hover:text-on-primary transition-all">
+                                    Probar Editor <span class="material-symbols-outlined">code</span>
+</a>
+</div>
+</div>
+<div class="bg-surface-container-highest order-1 md:order-2 flex items-center justify-center p-8">
+    <span class="material-symbols-outlined text-9xl text-primary/20">terminal</span>
+</div>
 </div>
 </div>
 </div>
 </div>
 </section>
-<!-- END: Hero Section -->
-<!-- BEGIN: Projects Section -->
-<section class="py-24 bg-brand-dark" data-purpose="projects-grid" id="proyectos">
-<div class="max-w-7xl mx-auto px-6">
-<div class="mb-16">
-<h2 class="text-4xl font-bold text-white mb-4">Mis proyectos</h2>
-<p class="text-gray-400 text-lg">Explora algunos de mis proyectos personales.</p>
-<div class="h-1 w-20 bg-brand-cyber mt-4"></div>
+<!-- Trayectoria Section -->
+<section class="py-32 bg-surface" id="experience">
+<div class="max-w-7xl mx-auto px-8">
+<div class="mb-20 text-center">
+<h2 class="text-5xl font-extrabold font-headline tracking-tight text-white mb-4">Trayectoria</h2>
+<div class="w-12 h-1 bg-primary mx-auto rounded-full"></div>
 </div>
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-<!-- Card 1: Calculadora -->
-<article class="group bg-brand-black border border-white/5 rounded-xl overflow-hidden hover:border-brand-accent transition-all duration-300 transform hover:-translate-y-2" data-purpose="project-card">
-<div class="h-48 bg-zinc-900 flex items-center justify-center overflow-hidden">
-<img alt="Calculadora JS" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_zIfixTlYVM-oGIDr3hauZU1kqEHDXg88-2-7X1t7buxHVdER3PHdRlxRjma2zjFidTsde1ArSNxsdUKC7leWWeyD589Ae9a5QnvZ3q-ZkLN0itqlBu5x3_G9kHufb90wP8oOBnYhJin4osM_nRu2Vq3uPbA-pN3oF0yjZIm5Sr4rZ9FHLOuGgrRdYSobqVff2Oa_3Q9b2jt8ftFU9bycXHbaMRqT5QJ1phGlf4fCpkIdwyfyOJGr2JA1IKf-0Uq3gttPm1cEU6mR"/>
+<div class="max-w-4xl mx-auto space-y-4">
+<!-- Education 1 -->
+<div class="relative group p-8 rounded-3xl hover:bg-surface-container transition-colors duration-500">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="space-y-1">
+<span class="font-mono text-secondary-fixed text-sm">2022 — Presente</span>
+<h3 class="text-2xl font-bold font-headline text-white">Grado en Ingeniería Informática</h3>
+<p class="text-on-surface-variant font-medium">Universidad Camilo José Cela (UCJC)</p>
 </div>
-<div class="p-6">
-<h3 class="text-xl font-bold text-white mb-2">Calculadora</h3>
-<p class="text-gray-400 text-sm mb-6">Una simple calculadora hecha con HTML, CSS y JS.</p>
-<div class="flex gap-3">
-<a class="px-4 py-2 bg-brand-accent/10 text-brand-accent text-xs font-bold uppercase tracking-wider rounded border border-brand-accent/20 hover:bg-brand-accent hover:text-white transition-colors" href="#">Pruébalo</a>
+<div class="px-4 py-1.5 bg-primary/10 border border-primary/20 text-primary text-xs rounded-full h-fit">En curso</div>
 </div>
 </div>
-</article>
-<!-- Card 2: MarkOS -->
-<article class="group bg-brand-black border border-white/5 rounded-xl overflow-hidden hover:border-brand-accent transition-all duration-300 transform hover:-translate-y-2" data-purpose="project-card">
-<div class="h-48 bg-zinc-900 flex items-center justify-center overflow-hidden">
-<img alt="MarkOS UI" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkhBnLiM0Jo1x8FRFchW7WOOef4BpXZaUJ9gJqvYKsjUOshBAIv_6MXuIpg_-rGnUhjyEWz7d2UXNB-LJlwY_t3OCW2hcHrqoBj4dvIkhc1LC9NNEAZvtrHDwgqGqX2SaUuzV5tzQiPFjj0ZG3Gmxv4o2nNa8C2t65UfUmHMEAaGJvfkoZTFBLXYgq2bqqki7MN2GWwxvAtLKvjW63TwDJ5WMgu8QQ6GN7lneMj1Af4ZGBtfEj9SWWn6hi575P_OLhpnN9RtsdQWHm"/>
+<!-- Education 2 -->
+<div class="relative group p-8 rounded-3xl hover:bg-surface-container transition-colors duration-500">
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="space-y-1">
+<span class="font-mono text-outline text-sm">2020 — 2022</span>
+<h3 class="text-2xl font-bold font-headline text-white">Bachillerato Tecnológico</h3>
+<p class="text-on-surface-variant font-medium">Colegio Torrevilano</p>
 </div>
-<div class="p-6">
-<h3 class="text-xl font-bold text-white mb-2">MarkOS</h3>
-<p class="text-gray-400 text-sm mb-6">Interfaz de sistema operativo dedicado a ofimática.</p>
-<div class="flex gap-3">
-<a class="px-4 py-2 bg-white/5 text-white text-xs font-bold uppercase tracking-wider rounded border border-white/10 hover:bg-white/20 transition-colors" href="#">GitHub</a>
+<div class="px-4 py-1.5 bg-surface-container-highest text-outline-variant text-xs rounded-full h-fit">Completado</div>
 </div>
-</div>
-</article>
-<!-- Card 3: Prime Video Clone -->
-<article class="group bg-brand-black border border-white/5 rounded-xl overflow-hidden hover:border-brand-accent transition-all duration-300 transform hover:-translate-y-2" data-purpose="project-card">
-<div class="h-48 bg-zinc-900 flex items-center justify-center overflow-hidden">
-<img alt="Prime Video Clone" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWcY5Z-5NlPAZeG08tv54h8dJMPGeU_JDyX4md6bQnhdngg9f9p7buTCgPUTytrnS-o-AAwhrKg33bwWSIvKzcc-VlG6XxBGosQy0yHLUxJebOrvuya5j-7bOhFhzMDWElTDRGslLKj0ol5XYOTyK4IPaFBZSW155sHYUPOCoRTtnlTtg48Fkd_TBCjba1Jx3p1NWeK2OUXIdDLlbxl8zyiCSt9YaAVANEBptnyD2aMyz1TFkTgmu9pQ-GPWA4Y09CDAZhnt4PXHzE"/>
-</div>
-<div class="p-6">
-<h3 class="text-xl font-bold text-white mb-2">Prime Video Clone</h3>
-<p class="text-gray-400 text-sm mb-6">Réplica hecha por mí de la página web de Amazon Prime Video.</p>
-<div class="flex gap-3">
-<a class="px-4 py-2 bg-white/5 text-white text-xs font-bold uppercase tracking-wider rounded border border-white/10 hover:bg-white/20 transition-colors" href="#">GitHub</a>
-<a class="px-4 py-2 bg-brand-accent/10 text-brand-accent text-xs font-bold uppercase tracking-wider rounded border border-brand-accent/20 hover:bg-brand-accent hover:text-white transition-colors" href="#">Pruébalo</a>
-</div>
-</div>
-</article>
-</div>
-</div>
-</section>
-<!-- END: Projects Section -->
-<!-- BEGIN: Timeline Section -->
-<section class="py-24 bg-brand-black relative" data-purpose="education-timeline" id="trayectoria">
-<div class="max-w-4xl mx-auto px-6">
-<div class="text-center mb-16">
-<h2 class="text-4xl font-bold text-white mb-4">Trayectoria</h2>
-<div class="h-1 w-20 bg-brand-accent mx-auto"></div>
-</div>
-<div class="relative border-l-2 border-white/10 ml-4 md:ml-0">
-<!-- Timeline Item 1 -->
-<div class="mb-12 relative pl-8">
-<div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-brand-accent ring-4 ring-brand-black"></div>
-<span class="text-brand-cyber font-mono text-sm font-semibold">2024 — 2028</span>
-<h3 class="text-xl font-bold text-white mt-1">Grado en Ingeniería Informática</h3>
-<p class="text-brand-accent font-medium">Universidad Camilo José Cela</p>
-<p class="text-gray-400 mt-2 leading-relaxed">
-              Actualmente cursando. Enfocado en fundamentos de ingeniería de software, algoritmos y sistemas.
-              <br/>
-<span class="inline-block mt-2 px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-bold text-white">
-                Nota media primer curso: 7,98
-              </span>
-</p>
-</div>
-<!-- Timeline Item 2 -->
-<div class="mb-8 relative pl-8">
-<div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-gray-600 ring-4 ring-brand-black"></div>
-<span class="text-gray-500 font-mono text-sm font-semibold">2022 — 2024</span>
-<h3 class="text-xl font-bold text-white mt-1">Bachillerato Tecnológico</h3>
-<p class="text-brand-accent font-medium">Colegio Torrevilano</p>
-<p class="text-gray-400 mt-2 leading-relaxed">
-              Formación sólida en matemáticas, física y dibujo técnico aplicada a la tecnología.
-              <br/>
-<span class="inline-block mt-2 px-2 py-1 bg-white/5 border border-white/10 rounded text-xs font-bold text-white">
-                Nota PAU: 11,975
-              </span>
-</p>
 </div>
 </div>
 </div>
 </section>
-<!-- END: Timeline Section -->
-<!-- BEGIN: Contact Section -->
-<section class="py-24 bg-brand-dark" data-purpose="contact-cta" id="contacto">
-<div class="max-w-4xl mx-auto px-6 text-center">
-<div class="bg-gradient-to-br from-brand-accent/20 to-brand-cyber/10 p-12 rounded-3xl border border-white/10">
-<h2 class="text-4xl font-bold text-white mb-4">Contacto</h2>
-<p class="text-gray-400 text-lg mb-10 max-w-lg mx-auto">
-            Si tienes algún interés en mí, quieres colaborar en un proyecto o simplemente saludar, no dudes en contactarme.
-          </p>
-<a class="inline-flex items-center justify-center px-10 py-5 bg-white text-black font-bold rounded-xl hover:bg-brand-cyber hover:text-black transition-all transform hover:scale-105 shadow-xl shadow-brand-accent/10" data-purpose="contact-button" href="mailto:marcosgar272006@gmail.com">
-<svg class="h-6 w-6 mr-3" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-<path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
-</svg>
-            Enviar Correo
-          </a>
+<!-- Contact Section -->
+<section class="py-32 mb-20" id="contact">
+<div class="max-w-7xl mx-auto px-8">
+<div class="bg-primary-container rounded-[3rem] p-12 md:p-24 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-1/2 h-full bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.1),transparent_70%)]"></div>
+<div class="relative z-10 grid md:grid-cols-2 gap-12 items-center">
+<div class="space-y-8">
+<h2 class="text-5xl md:text-6xl font-black font-headline tracking-tighter text-on-primary-container leading-tight">
+                                Trabajemos juntos en <br/> algo extraordinario.
+                            </h2>
+<p class="text-on-primary-container/80 text-xl max-w-sm">
+                                Actualmente en búsqueda de oportunidades de prácticas o colaboraciones freelance.
+                            </p>
+<div class="flex flex-col gap-4">
+<a class="flex items-center gap-4 text-2xl font-bold text-on-primary-container hover:translate-x-2 transition-transform" href="mailto:marcosgar272006@gmail.com">
+<span class="material-symbols-outlined text-4xl">mail</span>
+                                    marcosgar272006@gmail.com
+                                </a>
+<a class="flex items-center gap-4 text-2xl font-bold text-on-primary-container hover:translate-x-2 transition-transform" target="_blank" href="https://www.linkedin.com/in/marcos-garcia-guerra-aa1554333/">
+<span class="material-symbols-outlined text-4xl">share</span>
+                                    Perfil de LinkedIn
+                                </a>
+</div>
+</div>
+<div class="bg-on-primary-container/10 p-8 rounded-3xl backdrop-blur-md border border-white/10">
+<form class="space-y-6">
+<div class="space-y-2">
+<label class="text-xs font-mono uppercase tracking-widest text-on-primary-container/60">Tu Nombre</label>
+<input class="w-full bg-on-primary-container/5 border-none rounded-xl text-on-primary-container placeholder:text-on-primary-container/30 focus:ring-2 focus:ring-white/20 p-4" placeholder="Marcos Garcia" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-mono uppercase tracking-widest text-on-primary-container/60">Correo Electrónico</label>
+<input class="w-full bg-on-primary-container/5 border-none rounded-xl text-on-primary-container placeholder:text-on-primary-container/30 focus:ring-2 focus:ring-white/20 p-4" placeholder="hola@ejemplo.com" type="email"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-mono uppercase tracking-widest text-on-primary-container/60">Mensaje</label>
+<textarea class="w-full bg-on-primary-container/5 border-none rounded-xl text-on-primary-container placeholder:text-on-primary-container/30 focus:ring-2 focus:ring-white/20 p-4" placeholder="Cuéntame sobre tu proyecto..." rows="4"></textarea>
+</div>
+<button class="w-full bg-on-primary-container text-primary-container py-5 rounded-2xl font-black text-lg hover:bg-white transition-colors duration-300" type="submit">
+                                    Enviar Mensaje
+                                </button>
+</form>
+</div>
+</div>
 </div>
 </div>
 </section>
-<!-- END: Contact Section -->
 </main>
-<!-- BEGIN: Footer -->
-<footer class="py-12 bg-brand-black border-t border-white/5" data-purpose="footer">
-<div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between">
-<div class="text-sm text-gray-500 mb-4 md:mb-0">
-        © 2026 Marcos García. Todos los derechos reservados.
-      </div>
-<div class="flex space-x-6">
-<a aria-label="LinkedIn" class="text-gray-500 hover:text-white transition-colors" href="#">
-<span class="sr-only">LinkedIn</span>
-<svg class="h-6 w-6 fill-current" viewbox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"></path></svg>
-</a>
-<a aria-label="GitHub" class="text-gray-500 hover:text-white transition-colors" href="#">
-<span class="sr-only">GitHub</span>
-<svg class="h-6 w-6 fill-current" viewbox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path></svg>
-</a>
+<!-- Footer Component -->
+<footer class="bg-[#131313] w-full py-12">
+<div class="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="space-y-2 text-center md:text-left">
+<span class="text-lg font-black text-white font-headline">Marcos Garcia</span>
+<p class="font-['Inter'] text-sm leading-relaxed text-gray-500">© 2024 Marcos Garcia. Diseñado con intención.</p>
+</div>
+<div class="flex gap-8">
+<a class="text-gray-500 hover:text-white transition-colors duration-300 font-['Inter'] text-sm opacity-80 hover:opacity-100" target="_blank" href="https://www.linkedin.com/in/marcos-garcia-guerra-aa1554333/">LinkedIn</a>
+<a class="text-gray-500 hover:text-white transition-colors duration-300 font-['Inter'] text-sm opacity-80 hover:opacity-100" target="_blank" href="https://github.com/MarkQWERTY">GitHub</a>
 </div>
 </div>
 </footer>
-<!-- END: Footer -->
 </body></html>
