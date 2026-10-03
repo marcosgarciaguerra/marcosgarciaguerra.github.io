@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MG">
+  <rect width="64" height="64" fill="#111508"/>
+  <rect x="4" y="4" width="56" height="56" fill="none" stroke="#c3f400" stroke-width="3"/>
+  <text x="32" y="42" text-anchor="middle" font-family="monospace" font-size="22" font-weight="700" fill="#c3f400">MG</text>
+</svg>
