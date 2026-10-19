@@ -2,12 +2,9 @@ document.documentElement.classList.remove('no-js');
 document.documentElement.classList.add('js');
 
 document.addEventListener('DOMContentLoaded', () => {
-    const CONTACT_EMAIL = 'marcosgar272006@gmail.com';
-
     initScrollProgress();
     initReveal();
     initMobileNav();
-    initContactForm(CONTACT_EMAIL);
     initCarousels();
 });
 
@@ -79,125 +76,6 @@ function initMobileNav() {
     window.addEventListener('resize', () => {
         if (window.matchMedia('(min-width: 768px)').matches) close();
     });
-}
-
-function initContactForm(contactEmail) {
-    const form = document.getElementById('contact-form');
-    const alertBox = document.getElementById('contact-alert');
-    if (!form) return;
-
-    const fields = {
-        name: document.getElementById('contact-name'),
-        email: document.getElementById('contact-email'),
-        phone: document.getElementById('contact-phone'),
-        message: document.getElementById('contact-message')
-    };
-
-    Object.values(fields).forEach((input) => {
-        if (!input) return;
-        input.addEventListener('input', () => clearFieldError(input));
-    });
-
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-
-        clearAlert(alertBox);
-        Object.values(fields).forEach((input) => clearFieldError(input));
-
-        const name = fields.name.value.trim();
-        const email = fields.email.value.trim();
-        const phone = fields.phone.value.trim();
-        const message = fields.message.value.trim();
-        const submitBtn = form.querySelector('button[type="submit"]');
-
-        let firstInvalid = null;
-
-        if (!name) {
-            setFieldError(fields.name, 'Introduce tu nombre completo.');
-            firstInvalid = firstInvalid || fields.name;
-        }
-
-        if (!email) {
-            setFieldError(fields.email, 'Introduce un correo electrónico.');
-            firstInvalid = firstInvalid || fields.email;
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            setFieldError(fields.email, 'El formato del correo no es válido.');
-            firstInvalid = firstInvalid || fields.email;
-        }
-
-        if (!message) {
-            setFieldError(fields.message, 'Escribe un mensaje o propuesta.');
-            firstInvalid = firstInvalid || fields.message;
-        }
-
-        if (firstInvalid) {
-            showAlert(alertBox, 'Revisa los campos marcados. Hay errores de validación.', 'error');
-            firstInvalid.focus();
-            return;
-        }
-
-        const subject = encodeURIComponent(`Contacto portfolio — ${name}`);
-        const body = encodeURIComponent(
-            `Nombre: ${name}\nEmail: ${email}\nTeléfono: ${phone || '—'}\n\n${message}`
-        );
-
-        const original = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Abriendo correo…';
-
-        window.location.href = `mailto:${contactEmail}?subject=${subject}&body=${body}`;
-
-        showAlert(
-            alertBox,
-            'Se abrirá tu cliente de correo para enviar el mensaje. Si no se abre, escríbeme directamente al email de contacto.',
-            'success'
-        );
-        alertBox.focus();
-
-        window.setTimeout(() => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = original;
-        }, 1200);
-    });
-}
-
-function setFieldError(input, message) {
-    if (!input) return;
-    const errorId = input.getAttribute('aria-describedby');
-    const errorEl = errorId ? document.getElementById(errorId) : null;
-
-    input.setAttribute('aria-invalid', 'true');
-    if (errorEl) {
-        errorEl.textContent = message;
-        errorEl.classList.add('is-visible');
-    }
-}
-
-function clearFieldError(input) {
-    if (!input) return;
-    const errorId = input.getAttribute('aria-describedby');
-    const errorEl = errorId ? document.getElementById(errorId) : null;
-
-    input.removeAttribute('aria-invalid');
-    if (errorEl) {
-        errorEl.textContent = '';
-        errorEl.classList.remove('is-visible');
-    }
-}
-
-function showAlert(el, msg, type) {
-    if (!el) return;
-    el.textContent = msg;
-    el.classList.remove('form-alert--ok', 'form-alert--err');
-    el.classList.add('is-visible', type === 'success' ? 'form-alert--ok' : 'form-alert--err');
-    el.setAttribute('role', type === 'success' ? 'status' : 'alert');
-    el.setAttribute('tabindex', '-1');
-}
-
-function clearAlert(el) {
-    if (!el) return;
-    el.textContent = '';
-    el.classList.remove('is-visible', 'form-alert--ok', 'form-alert--err');
 }
 
 function initCarousels() {
