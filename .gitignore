@@ -12,3 +12,5 @@ Thumbs.db
 *.db
 *.sqlite
 node_modules/
+
+/projects/pages/modelo.html

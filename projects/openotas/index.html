@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>opeNotas</title>
+  
+  <!-- Política de Seguridad de Contenido (CSP) para blindar WebView y Web -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: file:; connect-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; object-src 'none';" />
+  
+  <!-- Tipografía Editorial de Alta Calidad -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Favicon y Logo del Sitio -->
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+  <link rel="alternate icon" type="image/png" href="assets/favicon.png" />
+  <link rel="apple-touch-icon" href="assets/logo.png" />
+  
+  <!-- jsPDF para exportación vectorial a PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- PDF.js para importación y renderizado de documentos PDF como cuadernos -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  
+  <!-- Estilos del Sistema -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ================= VISTA 1: MENÚ DE INICIO / BIBLIOTECA DIGITAL ================= -->
+  <div id="dashboardView" class="view-screen">
+    <!-- Contenido inyectado dinámicamente por js/dashboard/dashboardView.js -->
+  </div>
+
+  <!-- ================= VISTA 2: EDITOR Y LIENZO ================= -->
+  <div id="editorView" class="view-screen hidden">
+    <!-- Barra de Herramientas Híbrida Anclada Superior -->
+    <header class="toolbar" id="editorToolbar">
+      <!-- Inyectado dinámicamente por js/editor/toolbar.js -->
+    </header>
+
+    <!-- Área de Trabajo y Lienzo Vectorial -->
+    <main class="workspace" id="editorWorkspace">
+      <div class="canvas-wrapper wrapper-notebook" id="canvasWrapper">
+        <canvas id="paintCanvas"></canvas>
+      </div>
+    </main>
+  </div>
+
+  <!-- Orquestador de la Aplicación -->
+  <script src="js/bundle.js"></script>
+</body>
+</html>

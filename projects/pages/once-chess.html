@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es" class="no-js">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>ONCE-Chess | Proyecto de Marcos García</title>
+    <meta name="description" content="ONCE-Chess: proyecto de ajedrez en TypeScript con foco en interacción y experiencia de usuario en el navegador." />
+    <meta name="author" content="Marcos García" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://marcosgarciaguerra.github.io/projects/once-chess.html" />
+
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://marcosgarciaguerra.github.io/projects/once-chess.html" />
+    <meta property="og:title" content="ONCE-Chess | Marcos García" />
+    <meta property="og:description" content="Ajedrez en TypeScript con foco en interacción y UX en el navegador." />
+    <meta property="og:image" content="https://marcosgarciaguerra.github.io/assets/og-image.jpg" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:site_name" content="Marcos García Portfolio" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ONCE-Chess | Marcos García" />
+    <meta name="twitter:description" content="Ajedrez en TypeScript con foco en interacción y UX." />
+    <meta name="twitter:image" content="https://marcosgarciaguerra.github.io/assets/og-image.jpg" />
+
+    <link rel="icon" type="image/svg+xml" href="../../assets/image.png" />
+    <meta name="theme-color" content="#111508" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../css/styles.css" />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareSourceCode",
+      "name": "ONCE-Chess",
+      "description": "Proyecto de ajedrez en TypeScript con foco en interacción y experiencia de usuario en el navegador.",
+      "author": {
+        "@type": "Person",
+        "name": "Marcos García",
+        "url": "https://marcosgarciaguerra.github.io/"
+      },
+      "codeRepository": "https://github.com/marcosgarciaguerra/ONCE-Chess",
+      "programmingLanguage": "TypeScript",
+      "url": "https://marcosgarciaguerra.github.io/projects/once-chess.html"
+    }
+    </script>
+</head>
+
+<body>
+    <a class="skip-link" href="#project-content">Saltar al contenido principal</a>
+    <div id="scroll-progress" aria-hidden="true"></div>
+
+    <header class="project-header">
+        <div class="wrap project-header__inner">
+            <a class="back-link" href="../../index.html#projects">← Volver al portafolio</a>
+            <a class="brand" href="../../index.html" aria-label="Marcos García — Inicio">
+                <img src="../../assets/image.png" width="32" height="32" alt="" />
+                <span>MARCOS GARCÍA</span>
+            </a>
+        </div>
+    </header>
+
+    <main id="project-content" class="project-main">
+        <div class="wrap">
+            <header class="project-hero reveal">
+                <span class="project-hero__id">PROYECTO #2 · TypeScript</span>
+                <h1>ONCE-Chess</h1>
+                <p class="project-hero__lead">
+                    Proyecto de ajedrez en TypeScript centrado en la interacción del tablero y una
+                    experiencia de usuario fluida directamente en el navegador.
+                </p>
+            </header>
+
+            <section class="carousel reveal" data-carousel aria-roledescription="carousel" aria-label="Capturas de ONCE-Chess" tabindex="0">
+                <div class="carousel__frame">
+                    <ul class="carousel__track">
+                        <li class="carousel__slide is-active" data-slide>
+                            <img src="../../assets/projects/once-chess/1.jpg" alt="Tablero de ONCE-Chess" width="1200" height="500" loading="eager" decoding="async" />
+                        </li>
+                        <li class="carousel__slide" data-slide aria-hidden="true">
+                            <img src="../../assets/projects/once-chess/2.jpg" alt="Interfaz e historial de ONCE-Chess" width="1200" height="500" loading="lazy" decoding="async" />
+                        </li>
+                        <li class="carousel__slide" data-slide aria-hidden="true">
+                            <img src="../../assets/projects/once-chess/3.jpg" alt="Detalle de tipado TypeScript en ONCE-Chess" width="1200" height="500" loading="lazy" decoding="async" />
+                        </li>
+                    </ul>
+                </div>
+                <div class="carousel__toolbar">
+                    <button type="button" class="carousel__btn" data-carousel-prev aria-label="Imagen anterior">‹</button>
+                    <div class="carousel__dots" data-carousel-dots role="tablist" aria-label="Seleccionar imagen"></div>
+                    <p class="carousel__counter" data-carousel-counter aria-live="polite">1 / 3</p>
+                    <button type="button" class="carousel__btn" data-carousel-next aria-label="Imagen siguiente">›</button>
+                </div>
+            </section>
+
+            <div class="project-layout">
+                <div class="project-stack">
+                    <section class="project-panel reveal" aria-labelledby="overview-title">
+                        <h2 id="overview-title">Visión general</h2>
+                        <p>
+                            ONCE-Chess explora la lógica de un juego de mesa clásico en un entorno web tipado,
+                            combinando reglas del ajedrez con una interfaz interactiva.
+                        </p>
+                        <p>
+                            TypeScript aporta seguridad de tipos en el modelado del tablero, piezas y
+                            movimientos, facilitando mantener la complejidad del juego bajo control.
+                        </p>
+                    </section>
+
+                    <section class="project-panel reveal delay-1" aria-labelledby="features-title">
+                        <h2 id="features-title">Aspectos clave</h2>
+                        <ul>
+                            <li>Modelado tipado del dominio del ajedrez</li>
+                            <li>Interacción de usuario en el navegador</li>
+                            <li>Base TypeScript preparada para iterar reglas y UX</li>
+                        </ul>
+                    </section>
+                </div>
+
+                <aside class="project-panel project-panel--sticky reveal delay-2" aria-labelledby="meta-title">
+                    <h2 id="meta-title">Ficha técnica</h2>
+                    <ul class="meta-list">
+                        <li>
+                            <strong>Rol</strong>
+                            <span>Desarrollo frontend</span>
+                        </li>
+                        <li>
+                            <strong>Estado</strong>
+                            <span>Activo en GitHub</span>
+                        </li>
+                        <li>
+                            <strong>Repositorio</strong>
+                            <a href="https://github.com/marcosgarciaguerra/ONCE-Chess" target="_blank" rel="noopener noreferrer" aria-label="Ver código de ONCE-Chess en GitHub (se abre en una pestaña nueva)">github.com/marcosgarciaguerra/ONCE-Chess</a>
+                        </li>
+                    </ul>
+
+                    <h2 style="margin-top: 1.5rem;">Stack</h2>
+                    <ul class="tech-tags">
+                        <li>TypeScript</li>
+                        <li>HTML</li>
+                        <li>CSS</li>
+                    </ul>
+
+                    <div class="project-actions">
+                        <a class="btn btn--primary" href="https://github.com/marcosgarciaguerra/ONCE-Chess" target="_blank" rel="noopener noreferrer">Ver en GitHub</a>
+                    </div>
+                </aside>
+            </div>
+
+            <nav class="project-nav" aria-label="Navegación entre proyectos">
+                <a href="openotas.html">← Anterior: opeNotas</a>
+                <a href="mesaplay.html">Siguiente: MesaPlay →</a>
+            </nav>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="wrap site-footer__inner">
+            <span>&copy; 2026 Marcos García · Madrid, España</span>
+            <div class="footer-links">
+                <a href="../../index.html">Inicio</a>
+                <a href="https://github.com/marcosgarciaguerra" target="_blank" rel="noopener noreferrer">GitHub</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../js/main.js" defer></script>
+</body>
+
+</html>

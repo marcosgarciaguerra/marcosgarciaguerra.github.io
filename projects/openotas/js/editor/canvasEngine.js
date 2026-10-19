@@ -1,0 +1,2415 @@
+// js/editor/canvasEngine.js - Motor de lienzo vectorial multicapa con soporte de figuras, texto, imágenes y patrones
+import { CoverDesigner } from './coverDesigner.js';
+
+const BOARD_MIN_WIDTH = 1800;
+const BOARD_MIN_HEIGHT = 1200;
+const BOARD_MAX_SIZE = 24000;
+const BOARD_EDGE_MARGIN = 320;
+const BOARD_EXPAND_STEP = 900;
+const BOARD_MAX_PIXELS = 8192; // Límite seguro GPU para HiDPI
+
+export class CanvasEngine {
+  constructor(canvasElement, options = {}) {
+    this.canvas = canvasElement;
+    try {
+      this.ctx = this.canvas ? (this.canvas.getContext('2d', { desynchronized: true, alpha: true }) || this.canvas.getContext('2d')) : null;
+    } catch (_) {
+      this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
+    }
+
+    this.format = options.format || 'a4'; // 'a4' o 'board'
+    this.backgroundPattern = this.format === 'a4' ? 'ruled' : 'dots'; // 'blank' | 'ruled' | 'grid' | 'dots'
+    this.paperColor = options.paperColor || '#ffffff';
+
+    // Dimensiones lógicas y escalado HiDPI (Retina / Pantallas de alta densidad para máxima nitidez)
+    const isNodeEnv = typeof window === 'undefined';
+    this.dpr = isNodeEnv ? 1 : Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
+    this.logicalWidth = this.format === 'board' ? 1800 : 794;
+    this.logicalHeight = this.format === 'board' ? 1200 : 1123;
+
+    // Colecciones de elementos por capa
+    this.strokes = [];
+    this.shapes = [];
+    this.texts = [];
+    this.images = [];
+
+    this.undoStack = [];
+    this.redoStack = [];
+    this.maxUndoSteps = options.maxUndoSteps || 60;
+    this.viewport = options.viewport || null;
+    this.enableCulling = options.enableCulling !== undefined ? options.enableCulling : true;
+
+    // Estado del puntero y herramienta activa
+    this.tool = 'pen'; // 'pen' | 'pencil' | 'marker' | 'brush' | 'highlighter' | 'eraser' | 'lasso' | 'hand' | 'shape' | 'text' | 'image'
+    this.strokeColor = '#1e293b';
+    this.strokeWidth = 3;
+    this.strokeOpacity = 1;
+    this.strokeStabilization = 0.62; // Estabilidad / Suavizado de 0 (directo) a 1 (máxima suavidad)
+    this.strokeConcentration = 1.0; // Concentración / Densidad de tinta de 0.1 a 1.0 (100% sólido)
+    this._stabilizedPoint = null;
+    this._renderRaf = null;
+    this._needsStrokeRender = false;
+
+    // Configuración de borrador
+    let savedEraserMode = 'area';
+    let savedEraserRadius = 16;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        savedEraserMode = localStorage.getItem('openotas_eraser_mode') || 'area';
+        const r = Number(localStorage.getItem('openotas_eraser_radius'));
+        if (r && !isNaN(r)) savedEraserRadius = Math.max(4, r);
+      }
+    } catch (e) {}
+    this.eraserMode = savedEraserMode; // 'area' (borrador de trozo / parcial) | 'stroke' (trazo completo)
+    this.eraseHighlighterOnly = false;
+    this.eraserRadius = savedEraserRadius;
+    this._isErasingGesture = false;
+    this._eraserModified = false;
+    this._eraserInitialState = null;
+    this._lastEraserPt = null;
+
+    // Estado de trazo activo
+    this.isDrawing = false;
+    this.currentStroke = null;
+    this.lastPointerX = 0;
+    this.lastPointerY = 0;
+
+    // Palm Rejection & Input Mode (Modo stylus con rechazo de palma por defecto)
+    this.inputMode = options.inputMode || 'stylus-first'; // 'stylus-first' | 'finger-drawing'
+
+    // Regla y Láser
+    this.ruler = options.ruler || null;
+    this.laserPointer = options.laserPointer || null;
+
+    // Callbacks
+    this.onStrokeEnd = options.onStrokeEnd || null;
+
+    this._holdTimer = null;
+    this._shapeConverted = false;
+    this._prevToolBeforeStylusButton = null;
+
+    this._pointerDownHandler = null;
+    this._pointerMoveHandler = null;
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pointerup', (e) => this.onPointerUp(e));
+      window.addEventListener('pointercancel', (e) => this.onPointerUp(e));
+    }
+
+    this.attachCanvas(this.canvas);
+    this.initTouchGestures();
+    this.initDimensions();
+  }
+
+  setupHiDPI(canvas) {
+    if (!canvas) return;
+    const isNodeEnv = typeof window === 'undefined';
+    let dpr = isNodeEnv ? 1 : Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
+    if (this.format === 'board') {
+      const maxLogical = Math.max(this.logicalWidth || 1, this.logicalHeight || 1);
+      if (maxLogical * dpr > BOARD_MAX_PIXELS) {
+        dpr = Math.max(1, BOARD_MAX_PIXELS / maxLogical);
+      }
+    }
+    this.dpr = dpr;
+    const targetW = Math.round(this.logicalWidth * this.dpr);
+    const targetH = Math.round(this.logicalHeight * this.dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+    if (canvas.style) {
+      canvas.style.width = `${this.logicalWidth}px`;
+      canvas.style.height = `${this.logicalHeight}px`;
+    }
+  }
+
+  // Respuesta háptica táctil sensorial (Nativa en Android o Web Vibration API)
+  triggerHaptic(duration = 15) {
+    if (typeof window !== 'undefined') {
+      if (window.Android && typeof window.Android.triggerHapticFeedback === 'function') {
+        try { window.Android.triggerHapticFeedback(); } catch (_) {}
+      } else if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        try { navigator.vibrate(duration); } catch (_) {}
+      }
+    }
+  }
+
+  // Gestos táctiles universales de 2 y 3 dedos (Undo / Redo rápido)
+  initTouchGestures() {
+    if (typeof window === 'undefined' || !this.canvas || typeof this.canvas.addEventListener !== 'function') return;
+
+    let touchStartTime = 0;
+    let gestureFingerCount = 0;
+    let initialTouchPositions = [];
+
+    const onTouchStart = (e) => {
+      const count = e.touches.length;
+      if (count === 2 || count === 3) {
+        touchStartTime = Date.now();
+        gestureFingerCount = count;
+        initialTouchPositions = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }));
+      } else {
+        gestureFingerCount = 0;
+      }
+    };
+
+    const onTouchMove = (e) => {
+      if (gestureFingerCount === 2 || gestureFingerCount === 3) {
+        for (let i = 0; i < e.touches.length && i < initialTouchPositions.length; i++) {
+          const dist = Math.hypot(
+            e.touches[i].clientX - initialTouchPositions[i].x,
+            e.touches[i].clientY - initialTouchPositions[i].y
+          );
+          if (dist > 18) {
+            gestureFingerCount = 0; // Se convirtió en paneo o pinch zoom
+            break;
+          }
+        }
+      }
+    };
+
+    const onTouchEnd = (e) => {
+      if (gestureFingerCount === 2 || gestureFingerCount === 3) {
+        const dt = Date.now() - touchStartTime;
+        if (dt > 35 && dt < 450 && e.touches.length === 0) {
+          if (gestureFingerCount === 2) {
+            this.undo();
+            this.triggerHaptic(20);
+          } else if (gestureFingerCount === 3) {
+            this.redo();
+            this.triggerHaptic(20);
+          }
+        }
+        gestureFingerCount = 0;
+      }
+    };
+
+    this.canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+    this.canvas.addEventListener('touchmove', onTouchMove, { passive: true });
+    this.canvas.addEventListener('touchend', onTouchEnd, { passive: true });
+  }
+
+  initEraserIndicator() {
+    if (typeof document === 'undefined') return;
+    if (!this.eraserIndicator) {
+      let el = document.getElementById('eraserCursorIndicator');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'eraserCursorIndicator';
+        el.className = 'eraser-cursor-indicator hidden';
+        document.body.appendChild(el);
+      }
+      this.eraserIndicator = el;
+    }
+  }
+
+  updateEraserIndicator(e) {
+    if (typeof document === 'undefined') return;
+    if (!this.eraserIndicator) this.initEraserIndicator();
+    if (!this.eraserIndicator) return;
+
+    if (this.tool !== 'eraser') {
+      this.eraserIndicator.classList.add('hidden');
+      return;
+    }
+
+    if (e && e.clientX !== undefined && e.clientY !== undefined) {
+      const radius = this.eraserRadius || 16;
+      const diameter = radius * 2;
+      this.eraserIndicator.style.width = `${diameter}px`;
+      this.eraserIndicator.style.height = `${diameter}px`;
+      this.eraserIndicator.style.left = `${e.clientX - radius}px`;
+      this.eraserIndicator.style.top = `${e.clientY - radius}px`;
+      this.eraserIndicator.classList.remove('hidden');
+    }
+  }
+
+  hideEraserIndicator() {
+    if (this.eraserIndicator) {
+      this.eraserIndicator.classList.add('hidden');
+    }
+  }
+
+  attachCanvas(canvasElement, pageData = null) {
+    if (this.canvas && this._pointerDownHandler && typeof this.canvas.removeEventListener === 'function') {
+      this.canvas.removeEventListener('pointerdown', this._pointerDownHandler);
+      this.canvas.removeEventListener('pointermove', this._pointerMoveHandler);
+      this.canvas.removeEventListener('pointerleave', this._pointerLeaveHandler);
+      this.canvas.removeEventListener('pointerenter', this._pointerEnterHandler);
+    }
+
+    this.canvas = canvasElement;
+    if (this.canvas) {
+      this.setupHiDPI(this.canvas);
+      try {
+        this.ctx = this.canvas.getContext('2d', { desynchronized: true, alpha: true }) || this.canvas.getContext('2d');
+      } catch (_) {
+        this.ctx = this.canvas.getContext('2d');
+      }
+
+      this._pointerDownHandler = (e) => {
+        if (this.tool === 'eraser') this.updateEraserIndicator(e);
+        this.onPointerDown(e);
+      };
+      this._pointerMoveHandler = (e) => {
+        if (this.tool === 'eraser') this.updateEraserIndicator(e);
+        this.onPointerMove(e);
+      };
+      this._pointerLeaveHandler = () => this.hideEraserIndicator();
+      this._pointerEnterHandler = (e) => {
+        if (this.tool === 'eraser') this.updateEraserIndicator(e);
+      };
+
+      if (typeof this.canvas.addEventListener === 'function') {
+        this.canvas.addEventListener('pointerdown', this._pointerDownHandler);
+        this.canvas.addEventListener('pointermove', this._pointerMoveHandler);
+        this.canvas.addEventListener('pointerleave', this._pointerLeaveHandler);
+        this.canvas.addEventListener('pointerenter', this._pointerEnterHandler);
+      }
+    }
+
+    if (this.laserPointer && this.canvas) {
+      const host = this.canvas.parentElement || this.canvas;
+      this.laserPointer.setHost(this.canvas, host);
+    }
+
+    if (pageData) {
+      this.loadPage(pageData);
+    } else {
+      this.render();
+    }
+  }
+
+  initDimensions() {
+    const FORMATS = {
+      a4: { width: 794, height: 1123 },
+      board: { width: BOARD_MIN_WIDTH, height: BOARD_MIN_HEIGHT }
+    };
+    const { width, height } = FORMATS[this.format] || FORMATS.a4;
+    this.logicalWidth = width;
+    this.logicalHeight = height;
+    this.setupHiDPI(this.canvas);
+    this.render();
+  }
+
+  isInfiniteBoard() {
+    return this.format === 'board';
+  }
+
+  shiftAllContent(dx, dy) {
+    if (!dx && !dy) return;
+    const shiftPoint = (p) => {
+      if (!p) return;
+      p.x += dx;
+      p.y += dy;
+    };
+    for (const stroke of this.strokes) {
+      if (stroke.points) stroke.points.forEach(shiftPoint);
+      if (stroke.roughBox) {
+        stroke.roughBox.minX += dx;
+        stroke.roughBox.maxX += dx;
+        stroke.roughBox.minY += dy;
+        stroke.roughBox.maxY += dy;
+      }
+    }
+    if (this.currentStroke) {
+      if (this.currentStroke.points) this.currentStroke.points.forEach(shiftPoint);
+      if (this.currentStroke.roughBox) {
+        this.currentStroke.roughBox.minX += dx;
+        this.currentStroke.roughBox.maxX += dx;
+        this.currentStroke.roughBox.minY += dy;
+        this.currentStroke.roughBox.maxY += dy;
+      }
+    }
+    if (this._stabilizedPoint) {
+      this._stabilizedPoint.x += dx;
+      this._stabilizedPoint.y += dy;
+    }
+    this.lastPointerX += dx;
+    this.lastPointerY += dy;
+    for (const sh of this.shapes) {
+      sh.x += dx;
+      sh.y += dy;
+    }
+    for (const tx of this.texts) {
+      tx.x += dx;
+      tx.y += dy;
+      if (tx.bbox) {
+        tx.bbox.minX = (tx.bbox.minX ?? tx.bbox.min_x ?? tx.x) + dx;
+        tx.bbox.maxX = (tx.bbox.maxX ?? tx.bbox.max_x ?? tx.x) + dx;
+        tx.bbox.minY = (tx.bbox.minY ?? tx.bbox.min_y ?? tx.y) + dy;
+        tx.bbox.maxY = (tx.bbox.maxY ?? tx.bbox.max_y ?? tx.y) + dy;
+      }
+    }
+    for (const img of this.images) {
+      img.x += dx;
+      img.y += dy;
+    }
+  }
+
+  /**
+   * Expande la pizarra para cubrir el rectángulo pedido (coordenadas de lienzo).
+   * Si hace falta crecer hacia izquierda/arriba, desplaza el contenido y el viewport.
+   */
+  ensureBoardRect(minX, minY, maxX, maxY) {
+    if (!this.isInfiniteBoard()) return false;
+
+    let shiftX = 0;
+    let shiftY = 0;
+    let newW = this.logicalWidth;
+    let newH = this.logicalHeight;
+    let changed = false;
+
+    if (minX < BOARD_EDGE_MARGIN) {
+      shiftX = Math.ceil((BOARD_EDGE_MARGIN - minX) / BOARD_EXPAND_STEP) * BOARD_EXPAND_STEP;
+      changed = true;
+    }
+    if (minY < BOARD_EDGE_MARGIN) {
+      shiftY = Math.ceil((BOARD_EDGE_MARGIN - minY) / BOARD_EXPAND_STEP) * BOARD_EXPAND_STEP;
+      changed = true;
+    }
+
+    const adjMaxX = maxX + shiftX;
+    const adjMaxY = maxY + shiftY;
+    if (adjMaxX > newW - BOARD_EDGE_MARGIN) {
+      newW = Math.min(BOARD_MAX_SIZE, Math.ceil(adjMaxX + BOARD_EXPAND_STEP));
+      changed = true;
+    }
+    if (adjMaxY > newH - BOARD_EDGE_MARGIN) {
+      newH = Math.min(BOARD_MAX_SIZE, Math.ceil(adjMaxY + BOARD_EXPAND_STEP));
+      changed = true;
+    }
+
+    if (shiftX || shiftY) {
+      newW = Math.min(BOARD_MAX_SIZE, newW + shiftX);
+      newH = Math.min(BOARD_MAX_SIZE, newH + shiftY);
+    }
+
+    newW = Math.max(BOARD_MIN_WIDTH, newW);
+    newH = Math.max(BOARD_MIN_HEIGHT, newH);
+
+    if (!changed && newW === this.logicalWidth && newH === this.logicalHeight) {
+      return false;
+    }
+
+    if (shiftX || shiftY) {
+      this.shiftAllContent(shiftX, shiftY);
+      if (this.viewport) {
+        const z = this.viewport.zoom || 1;
+        this.viewport.panX -= shiftX * z;
+        this.viewport.panY -= shiftY * z;
+      }
+    }
+
+    const sizeChanged = newW !== this.logicalWidth || newH !== this.logicalHeight;
+    this.logicalWidth = newW;
+    this.logicalHeight = newH;
+
+    if (sizeChanged) {
+      this.setupHiDPI(this.canvas);
+    }
+    if (this.viewport && (shiftX || shiftY)) {
+      this.viewport.applyTransform();
+    }
+    if (sizeChanged || shiftX || shiftY) {
+      this.render();
+    }
+    return true;
+  }
+
+  ensureBoardSpace(x, y) {
+    if (!this.isInfiniteBoard() || !Number.isFinite(x) || !Number.isFinite(y)) return false;
+    return this.ensureBoardRect(x, y, x, y);
+  }
+
+  ensureBoardCoversViewport(visibleRect) {
+    if (!this.isInfiniteBoard() || !visibleRect) return false;
+    const pad = 240;
+    return this.ensureBoardRect(
+      visibleRect.minX - pad,
+      visibleRect.minY - pad,
+      visibleRect.maxX + pad,
+      visibleRect.maxY + pad
+    );
+  }
+
+  fitBoardToContent(padding = 480) {
+    if (!this.isInfiniteBoard()) return;
+    const bbox = this.getContentBounds();
+    if (!bbox) {
+      this.logicalWidth = BOARD_MIN_WIDTH;
+      this.logicalHeight = BOARD_MIN_HEIGHT;
+      this.setupHiDPI(this.canvas);
+      return;
+    }
+    this.logicalWidth = Math.min(
+      BOARD_MAX_SIZE,
+      Math.max(BOARD_MIN_WIDTH, Math.ceil(bbox.maxX + padding))
+    );
+    this.logicalHeight = Math.min(
+      BOARD_MAX_SIZE,
+      Math.max(BOARD_MIN_HEIGHT, Math.ceil(bbox.maxY + padding))
+    );
+    this.setupHiDPI(this.canvas);
+  }
+
+  getContentBounds() {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let hasContent = false;
+
+    for (const stroke of this.strokes) {
+      const box = stroke.roughBox;
+      if (!box) continue;
+      hasContent = true;
+      const pad = (stroke.width || 2);
+      minX = Math.min(minX, box.minX - pad);
+      minY = Math.min(minY, box.minY - pad);
+      maxX = Math.max(maxX, box.maxX + pad);
+      maxY = Math.max(maxY, box.maxY + pad);
+    }
+    for (const sh of this.shapes) {
+      hasContent = true;
+      minX = Math.min(minX, Math.min(sh.x, sh.x + sh.width));
+      minY = Math.min(minY, Math.min(sh.y, sh.y + sh.height));
+      maxX = Math.max(maxX, Math.max(sh.x, sh.x + sh.width));
+      maxY = Math.max(maxY, Math.max(sh.y, sh.y + sh.height));
+    }
+    for (const tx of this.texts) {
+      hasContent = true;
+      minX = Math.min(minX, tx.x);
+      minY = Math.min(minY, tx.y);
+      maxX = Math.max(maxX, tx.x + (tx.width || 200));
+      maxY = Math.max(maxY, tx.y + (tx.fontSize || 20) * 2);
+    }
+    for (const img of this.images) {
+      hasContent = true;
+      minX = Math.min(minX, img.x);
+      minY = Math.min(minY, img.y);
+      maxX = Math.max(maxX, img.x + img.width);
+      maxY = Math.max(maxY, img.y + img.height);
+    }
+
+    if (!hasContent) return null;
+    return { minX, minY, maxX, maxY };
+  }
+
+  setFormat(formatKey) {
+    this.format = formatKey;
+    if (this.format === 'a4' && this.backgroundPattern === 'dots') {
+      this.backgroundPattern = 'ruled';
+    } else if (this.format === 'board' && this.backgroundPattern === 'ruled') {
+      this.backgroundPattern = 'dots';
+    }
+    this.initDimensions();
+  }
+
+  setBackgroundPattern(pattern) {
+    this.backgroundPattern = pattern;
+    this.render();
+    if (this.onStrokeEnd) this.onStrokeEnd();
+  }
+
+  setPaperColor(color) {
+    this.paperColor = color;
+    this.render();
+    if (this.onStrokeEnd) this.onStrokeEnd();
+  }
+
+  setTool(tool) {
+    this.tool = tool;
+    if (tool !== 'eraser') {
+      this.hideEraserIndicator();
+    }
+    if (this.laserPointer) {
+      this.laserPointer.setActive(tool === 'laser');
+    }
+  }
+
+  setEraserRadius(radius) {
+    this.eraserRadius = Math.max(4, Number(radius) || 16);
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('openotas_eraser_radius', this.eraserRadius);
+      }
+    } catch (e) {}
+  }
+
+  setRuler(ruler) {
+    this.ruler = ruler;
+  }
+
+  setLaserPointer(laserPointer) {
+    this.laserPointer = laserPointer;
+    if (this.laserPointer) {
+      this.laserPointer.setActive(this.tool === 'laser');
+    }
+  }
+
+  setViewport(viewport) {
+    this.viewport = viewport;
+  }
+
+  getVisibleRect() {
+    if (this.viewport && typeof this.viewport.getVisibleRect === 'function') {
+      return this.viewport.getVisibleRect();
+    }
+    return null;
+  }
+
+  isElementVisible(box, margin = 40) {
+    if (!this.enableCulling) return true;
+    if (this.format === 'a4') return true;
+    const vr = this.getVisibleRect();
+    if (!vr || !box) return true;
+    return !(
+      box.maxX + margin < vr.minX ||
+      box.minX - margin > vr.maxX ||
+      box.maxY + margin < vr.minY ||
+      box.minY - margin > vr.maxY
+    );
+  }
+
+  setColor(color) {
+    this.strokeColor = color;
+  }
+
+  setWidth(width) {
+    this.strokeWidth = Math.max(0.1, Number(width) || 0.1);
+  }
+
+  setStabilization(stabilization) {
+    this.strokeStabilization = Math.max(0, Math.min(1, Number(stabilization) || 0));
+  }
+
+  setConcentration(concentration) {
+    this.strokeConcentration = Math.max(0.1, Math.min(1, Number(concentration) || 0.1));
+  }
+
+  setOpacity(opacity) {
+    this.strokeOpacity = Number(opacity);
+  }
+
+  setEraserMode(mode) {
+    this.eraserMode = mode === 'stroke' ? 'stroke' : 'area';
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('openotas_eraser_mode', this.eraserMode);
+      }
+    } catch (e) {}
+  }
+
+  setEraseHighlighterOnly(val) {
+    this.eraseHighlighterOnly = Boolean(val);
+  }
+
+  setInputMode(mode) {
+    this.inputMode = mode; // 'stylus-first' | 'finger-drawing'
+  }
+
+  loadPage(page) {
+    if (!page) return;
+    this.isCover = Boolean(page.isCover || page.template);
+    this.coverData = this.isCover ? (page.coverData || page) : null;
+    this.backgroundPattern = page.backgroundPattern || (this.format === 'a4' ? 'ruled' : 'dots');
+    this.paperColor = page.paperColor || '#ffffff';
+    this.backgroundImage = page.backgroundImage || null;
+
+    if (this.backgroundImage) {
+      if (page._bgImgElement && page._bgImgElement.complete) {
+        this._bgImgElement = page._bgImgElement;
+      } else {
+        const bgImg = new Image();
+        bgImg.src = this.backgroundImage;
+        bgImg.onload = () => this.render();
+        this._bgImgElement = bgImg;
+      }
+    } else {
+      this._bgImgElement = null;
+    }
+
+    this.strokes = JSON.parse(JSON.stringify(page.strokes || []));
+    this.shapes = JSON.parse(JSON.stringify(page.shapes || []));
+    this.texts = JSON.parse(JSON.stringify(page.texts || []));
+    this.images = JSON.parse(JSON.stringify(page.images || []));
+
+    // Precargar elementos Image nativos para renderizado fluido
+    for (const imgItem of this.images) {
+      if (!imgItem._element && imgItem.dataUrl) {
+        const img = new Image();
+        img.src = imgItem.dataUrl;
+        img.onload = () => this.render();
+        imgItem._element = img;
+      }
+    }
+
+    if (this.isInfiniteBoard()) {
+      const savedW = Number(page.boardWidth) || BOARD_MIN_WIDTH;
+      const savedH = Number(page.boardHeight) || BOARD_MIN_HEIGHT;
+      this.logicalWidth = Math.min(BOARD_MAX_SIZE, Math.max(BOARD_MIN_WIDTH, savedW));
+      this.logicalHeight = Math.min(BOARD_MAX_SIZE, Math.max(BOARD_MIN_HEIGHT, savedH));
+      this.fitBoardToContent(480);
+      // Si el documento guardaba un tamaño mayor (espacio vacío explorado), respetarlo
+      this.logicalWidth = Math.min(BOARD_MAX_SIZE, Math.max(this.logicalWidth, savedW));
+      this.logicalHeight = Math.min(BOARD_MAX_SIZE, Math.max(this.logicalHeight, savedH));
+      this.setupHiDPI(this.canvas);
+    }
+
+    this.undoStack = [];
+    this.redoStack = [];
+    this.render();
+  }
+
+  getPageData() {
+    // Sanitizar elementos de imagen para serialización limpia
+    const cleanImages = this.images.map(img => ({
+      id: img.id,
+      x: img.x,
+      y: img.y,
+      width: img.width,
+      height: img.height,
+      dataUrl: img.dataUrl,
+      rotation: img.rotation || 0
+    }));
+
+    const data = {
+      backgroundPattern: this.backgroundPattern,
+      paperColor: this.paperColor || '#ffffff',
+      backgroundImage: this.backgroundImage || null,
+      strokes: this.strokes,
+      shapes: this.shapes,
+      texts: this.texts,
+      images: cleanImages
+    };
+
+    if (this.isInfiniteBoard()) {
+      data.boardWidth = this.logicalWidth;
+      data.boardHeight = this.logicalHeight;
+      data.infinite = true;
+    }
+
+    if (this.isCover && this.coverData) {
+      data.isCover = true;
+      data.template = this.coverData.template;
+      data.title = this.coverData.title;
+      data.subtitle = this.coverData.subtitle;
+      data.date = this.coverData.date;
+      data.color = this.coverData.color;
+      data.customImage = this.coverData.customImage;
+    }
+
+    return data;
+  }
+
+  loadStrokes(strokes) {
+    this.loadPage({ strokes: strokes, shapes: [], texts: [], images: [] });
+  }
+
+  getStrokes() {
+    return this.strokes;
+  }
+
+  // Conversión precisa de coordenadas de puntero al espacio del canvas con soporte de Stylus (presión e inclinación)
+  getCanvasCoordinates(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return { x: 0, y: 0, pressure: 0.5, tiltX: 0, tiltY: 0, pointerType: 'mouse' };
+    const scaleX = this.logicalWidth / rect.width;
+    const scaleY = this.logicalHeight / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+      pressure: (e.pressure !== undefined && e.pressure > 0) ? e.pressure : 0.5,
+      tiltX: e.tiltX || 0,
+      tiltY: e.tiltY || 0,
+      pointerType: e.pointerType || 'mouse'
+    };
+  }
+
+  // Soporte para botón físico del Stylus / S-Pen (alternar temporalmente a borrador)
+  handleStylusButton(e) {
+    if (e.pointerType === 'pen') {
+      if (e.buttons === 2 || e.button === 2 || e.button === 5) {
+        if (this.tool !== 'eraser') {
+          this._prevToolBeforeStylusButton = this.tool;
+          this.setTool('eraser');
+          this.triggerHaptic(15);
+        }
+      }
+    }
+  }
+
+  // Detección y conversión de trazos manuales en formas geométricas
+  // Se ha retirado la auto-creación de polígonos al escribir para que no interfiera con la escritura manuscrita natural
+  tryConvertToSmartShape() {
+    return false;
+  }
+
+  // Detección del gesto de tachar para borrar (Scratch-out zigzag)
+  detectScratchOut(stroke) {
+    if (!stroke || !stroke.points || stroke.points.length < 16) return false;
+    const pts = stroke.points;
+    const rb = stroke.roughBox;
+    const w = rb.maxX - rb.minX;
+    const h = rb.maxY - rb.minY;
+    const diag = Math.hypot(w, h);
+    if (diag < 20 || diag > 350) return false;
+
+    let totalLen = 0;
+    let reversals = 0;
+    let prevDir = null;
+
+    for (let i = 1; i < pts.length; i++) {
+      const dx = pts[i].x - pts[i - 1].x;
+      const dy = pts[i].y - pts[i - 1].y;
+      totalLen += Math.hypot(dx, dy);
+
+      const mainDelta = w >= h ? dx : dy;
+      if (Math.abs(mainDelta) > 5) {
+        const curDir = mainDelta > 0 ? 1 : -1;
+        if (prevDir !== null && curDir !== prevDir) {
+          reversals++;
+        }
+        prevDir = curDir;
+      }
+    }
+
+    return reversals >= 6 && totalLen > diag * 3.0;
+  }
+
+  handleScratchOutErase(stroke) {
+    const rb = stroke.roughBox;
+    const margin = 12;
+    const targetBox = {
+      minX: rb.minX - margin,
+      minY: rb.minY - margin,
+      maxX: rb.maxX + margin,
+      maxY: rb.maxY + margin
+    };
+
+    const deletedStrokes = [];
+    const remainingStrokes = [];
+    for (let i = 0; i < this.strokes.length; i++) {
+      const s = this.strokes[i];
+      if (s.id === stroke.id) continue;
+      const sBox = s.roughBox || { minX: s.points[0].x, minY: s.points[0].y, maxX: s.points[0].x, maxY: s.points[0].y };
+      const overlaps = !(
+        sBox.maxX < targetBox.minX ||
+        sBox.minX > targetBox.maxX ||
+        sBox.maxY < targetBox.minY ||
+        sBox.minY > targetBox.maxY
+      );
+      if (overlaps) {
+        deletedStrokes.push({ stroke: s, index: i });
+      } else {
+        remainingStrokes.push(s);
+      }
+    }
+
+    const deletedShapes = [];
+    const remainingShapes = [];
+    for (let i = 0; i < this.shapes.length; i++) {
+      const sh = this.shapes[i];
+      const shBox = {
+        minX: Math.min(sh.x, sh.x + sh.width),
+        minY: Math.min(sh.y, sh.y + sh.height),
+        maxX: Math.max(sh.x, sh.x + sh.width),
+        maxY: Math.max(sh.y, sh.y + sh.height)
+      };
+      const overlaps = !(
+        shBox.maxX < targetBox.minX ||
+        shBox.minX > targetBox.maxX ||
+        shBox.maxY < targetBox.minY ||
+        shBox.minY > targetBox.maxY
+      );
+      if (overlaps) {
+        deletedShapes.push({ shape: sh, index: i });
+      } else {
+        remainingShapes.push(sh);
+      }
+    }
+
+    const deletedTexts = [];
+    const remainingTexts = [];
+    for (let i = 0; i < this.texts.length; i++) {
+      const tx = this.texts[i];
+      const txBox = this.getTextBoundingBox(tx);
+      const overlaps = !(
+        txBox.maxX < targetBox.minX ||
+        txBox.minX > targetBox.maxX ||
+        txBox.maxY < targetBox.minY ||
+        txBox.minY > targetBox.maxY
+      );
+      if (overlaps) {
+        deletedTexts.push({ text: tx, index: i });
+      } else {
+        remainingTexts.push(tx);
+      }
+    }
+
+    if (deletedStrokes.length > 0 || deletedShapes.length > 0 || deletedTexts.length > 0) {
+      this.pushAction({
+        type: 'delete_multiple_elements',
+        strokes: deletedStrokes,
+        shapes: deletedShapes,
+        texts: deletedTexts
+      });
+      this.strokes = remainingStrokes;
+      this.shapes = remainingShapes;
+      this.texts = remainingTexts;
+      this.triggerHaptic(35);
+      this.render();
+      if (this.onStrokeEnd) this.onStrokeEnd();
+      return true;
+    }
+    return false;
+  }
+
+  onPointerDown(e) {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+    // Si se acaba de cerrar un menú o se tocó la barra del editor / popover, evitar pintar de primeras
+    if (this._suppressNextDraw) {
+      this._suppressNextDraw = false;
+      return;
+    }
+
+    if (e.target && e.target.closest && (e.target.closest('#editorToolbar') || e.target.closest('.tool-popover') || e.target.closest('.modal-overlay') || e.target.closest('.zoom-controls-widget') || e.target.closest('.pages-tray-container'))) {
+      return;
+    }
+
+    // Rechazo de palma activo: Si está en modo Stylus y el evento es un toque táctil, ignorar para dibujo
+    if (this.inputMode === 'stylus-first' && e.pointerType === 'touch') {
+      return;
+    }
+
+    // Si la herramienta activa es navegación, láser o externa, delegar
+    if (this.tool === 'laser' || this.tool === 'lasso' || this.tool === 'hand' || this.tool === 'shape' || this.tool === 'text' || this.tool === 'image') {
+      return;
+    }
+
+    this.canvas.setPointerCapture(e.pointerId);
+
+    this._shapeConverted = false;
+    if (this._holdTimer) {
+      clearTimeout(this._holdTimer);
+      this._holdTimer = null;
+    }
+    this.handleStylusButton(e);
+
+    let pt = this.getCanvasCoordinates(e);
+
+    // Snapping y bloqueo con Regla si está activa
+    let isSnapped = false;
+    this._rulerLockedEdge = null;
+    if (this.ruler && this.ruler.active) {
+      const snap = this.ruler.snapPoint(pt.x, pt.y);
+      if (snap.snapped) {
+        pt.x = snap.x;
+        pt.y = snap.y;
+        this._rulerLockedEdge = snap.edge;
+        isSnapped = true;
+      }
+    }
+
+    this.isDrawing = true;
+    this.lastPointerX = pt.x;
+    this.lastPointerY = pt.y;
+
+    if (this.tool === 'eraser') {
+      this._isErasingGesture = true;
+      this._eraserModified = false;
+      this._eraserInitialState = {
+        strokes: [...this.strokes],
+        texts: [...this.texts],
+        shapes: [...this.shapes]
+      };
+      this._lastEraserPt = { x: pt.x, y: pt.y };
+      this.handleEraser(pt);
+      return;
+    }
+
+    // Inicializar nuevo trazo vectorial con modulación por presión e inclinación (tilt)
+    const isHighlighter = this.tool === 'highlighter';
+    const isPencil = this.tool === 'pencil';
+    const isBrush = this.tool === 'brush';
+    const isMarker = this.tool === 'marker';
+
+    const tiltMag = Math.hypot(pt.tiltX || 0, pt.tiltY || 0);
+    const tiltMultiplier = tiltMag > 15 ? (1 + (tiltMag / 90) * 0.75) : 1.0;
+    
+    // Modulación de grosor por presión si procede
+    let initialWidth = this.strokeWidth;
+    if (isHighlighter) {
+      initialWidth = Math.max(16, this.strokeWidth * 3.2);
+    } else if (isPencil) {
+      initialWidth = Math.max(1.5, this.strokeWidth * (0.6 + pt.pressure * 0.7) * tiltMultiplier);
+    } else if (isBrush) {
+      initialWidth = Math.max(1.5, this.strokeWidth * (0.4 + pt.pressure * 1.2) * tiltMultiplier);
+    } else {
+      initialWidth = Math.max(0.1, this.strokeWidth * (0.7 + pt.pressure * 0.6));
+    }
+
+    this._stabilizedPoint = { x: pt.x, y: pt.y, pressure: pt.pressure, tiltX: pt.tiltX, tiltY: pt.tiltY };
+
+    this.currentStroke = {
+      id: 'stroke_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      tool: this.tool,
+      color: this.strokeColor,
+      width: initialWidth,
+      baseWidth: this.strokeWidth,
+      opacity: isHighlighter ? 0.45 : (isPencil ? 0.85 : this.strokeOpacity),
+      concentration: this.strokeConcentration !== undefined ? this.strokeConcentration : 1.0,
+      stabilization: this.strokeStabilization !== undefined ? this.strokeStabilization : 0.62,
+      isHighlighter: isHighlighter,
+      points: [{ ...pt }],
+      roughBox: { minX: pt.x, minY: pt.y, maxX: pt.x, maxY: pt.y }
+    };
+
+    this.ensureBoardSpace(pt.x, pt.y);
+    this.scheduleRender();
+  }
+
+  scheduleRender() {
+    this._needsStrokeRender = true;
+    if (this._renderRaf != null) return;
+    const raf = (typeof requestAnimationFrame === 'function')
+      ? requestAnimationFrame.bind(typeof window !== 'undefined' ? window : globalThis)
+      : (cb) => setTimeout(cb, 16);
+    this._renderRaf = raf(() => {
+      this._renderRaf = null;
+      if (this._needsStrokeRender) {
+        this._needsStrokeRender = false;
+        this.render();
+      }
+    });
+  }
+
+  flushPendingRender() {
+    if (this._renderRaf != null && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(this._renderRaf);
+      this._renderRaf = null;
+    }
+    if (this._needsStrokeRender) {
+      this._needsStrokeRender = false;
+      this.render();
+    }
+  }
+
+  appendStabilizedPoint(pt, isSnapped = false) {
+    if (!this.currentStroke) return;
+
+    let targetPt;
+    const stab = this.strokeStabilization !== undefined ? this.strokeStabilization : 0.62;
+    if (isSnapped) {
+      targetPt = { x: pt.x, y: pt.y, pressure: pt.pressure, tiltX: pt.tiltX, tiltY: pt.tiltY };
+      this._stabilizedPoint = targetPt;
+    } else if (stab > 0.02 && this._stabilizedPoint) {
+      // Curva suave: más estabilización sin lag excesivo en giros rápidos
+      const alpha = Math.max(0.08, Math.pow(1 - stab, 1.35));
+      const smoothX = this._stabilizedPoint.x + (pt.x - this._stabilizedPoint.x) * alpha;
+      const smoothY = this._stabilizedPoint.y + (pt.y - this._stabilizedPoint.y) * alpha;
+      const smoothPressure = this._stabilizedPoint.pressure + ((pt.pressure ?? 0.5) - this._stabilizedPoint.pressure) * Math.min(1, alpha + 0.15);
+      this._stabilizedPoint = { x: smoothX, y: smoothY, pressure: smoothPressure, tiltX: pt.tiltX, tiltY: pt.tiltY };
+      targetPt = { x: smoothX, y: smoothY, pressure: smoothPressure, tiltX: pt.tiltX, tiltY: pt.tiltY };
+    } else {
+      this._stabilizedPoint = { x: pt.x, y: pt.y, pressure: pt.pressure, tiltX: pt.tiltX, tiltY: pt.tiltY };
+      targetPt = pt;
+    }
+
+    const pts = this.currentStroke.points;
+    if (pts.length > 0) {
+      const last = pts[pts.length - 1];
+      const dist = Math.hypot(targetPt.x - last.x, targetPt.y - last.y);
+      if (dist < 0.35) {
+        last.x = targetPt.x;
+        last.y = targetPt.y;
+        last.pressure = targetPt.pressure;
+        last.tiltX = targetPt.tiltX;
+        last.tiltY = targetPt.tiltY;
+        return;
+      }
+    }
+
+    pts.push(targetPt);
+    const rb = this.currentStroke.roughBox;
+    rb.minX = Math.min(rb.minX, targetPt.x);
+    rb.minY = Math.min(rb.minY, targetPt.y);
+    rb.maxX = Math.max(rb.maxX, targetPt.x);
+    rb.maxY = Math.max(rb.maxY, targetPt.y);
+    this.ensureBoardSpace(targetPt.x, targetPt.y);
+  }
+
+  onPointerMove(e) {
+    if (!this.isDrawing) return;
+
+    if (this.tool === 'eraser') {
+      const pt = this.getCanvasCoordinates(e);
+      this.handleEraser(pt);
+      return;
+    }
+
+    if (!this.currentStroke) return;
+
+    const events = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
+    const sampleEvents = events.length > 0 ? events : [e];
+
+    for (const ev of sampleEvents) {
+      let pt = this.getCanvasCoordinates(ev);
+      let isSnapped = false;
+
+      if (this.ruler && this.ruler.active) {
+        const snap = this.ruler.snapPoint(pt.x, pt.y, { lockedEdge: this._rulerLockedEdge });
+        if (snap.snapped) {
+          pt.x = snap.x;
+          pt.y = snap.y;
+          isSnapped = true;
+          if (!this._rulerLockedEdge && snap.edge) {
+            this._rulerLockedEdge = snap.edge;
+          }
+        }
+      }
+
+      this.appendStabilizedPoint(pt, isSnapped);
+      this.lastPointerX = pt.x;
+      this.lastPointerY = pt.y;
+    }
+
+    this.scheduleRender();
+  }
+
+  onPointerUp(e) {
+    if (!this.isDrawing) return;
+    this.isDrawing = false;
+    this._rulerLockedEdge = null;
+
+    if (this._holdTimer) {
+      clearTimeout(this._holdTimer);
+      this._holdTimer = null;
+    }
+
+    if (this._isErasingGesture) {
+      if (this._eraserModified && this._eraserInitialState) {
+        this.pushAction({
+          type: 'eraser_stroke',
+          oldStrokes: this._eraserInitialState.strokes,
+          newStrokes: [...this.strokes],
+          oldTexts: this._eraserInitialState.texts,
+          newTexts: [...this.texts],
+          oldShapes: this._eraserInitialState.shapes,
+          newShapes: [...this.shapes]
+        });
+      }
+      this._isErasingGesture = false;
+      this._eraserModified = false;
+      this._eraserInitialState = null;
+      this._lastEraserPt = null;
+      if (this.tool === 'eraser') {
+        if (this.onStrokeEnd) this.onStrokeEnd();
+        return;
+      }
+    }
+
+    if (this._prevToolBeforeStylusButton) {
+      this.setTool(this._prevToolBeforeStylusButton);
+      this._prevToolBeforeStylusButton = null;
+    }
+
+    if (this._shapeConverted) {
+      this._shapeConverted = false;
+      this.currentStroke = null;
+      this._stabilizedPoint = null;
+      this.render();
+      if (this.onStrokeEnd) this.onStrokeEnd();
+      return;
+    }
+
+    if (this.currentStroke) {
+      // Gesto de Tachar para Borrar (Scratch-out to erase)
+      if (this.tool !== 'eraser' && this.detectScratchOut(this.currentStroke)) {
+        const erased = this.handleScratchOutErase(this.currentStroke);
+        if (erased) {
+          this.currentStroke = null;
+          this._stabilizedPoint = null;
+          return;
+        }
+      }
+
+      if (this.currentStroke && this.currentStroke.points && this.currentStroke.points.length > 0) {
+        if (this.strokeStabilization > 0.05 && this.lastPointerX && this.lastPointerY) {
+          const lastPt = this.currentStroke.points[this.currentStroke.points.length - 1];
+          const dist = Math.hypot(this.lastPointerX - lastPt.x, this.lastPointerY - lastPt.y);
+          if (dist > 2) {
+            this.currentStroke.points.push({
+              x: this.lastPointerX,
+              y: this.lastPointerY,
+              pressure: lastPt.pressure || 0.5
+            });
+          }
+        }
+        this.pushAction({
+          type: 'add_stroke',
+          stroke: this.currentStroke
+        });
+        this.strokes.push(this.currentStroke);
+      }
+      this.currentStroke = null;
+      this._stabilizedPoint = null;
+      this.flushPendingRender();
+      if (this.onStrokeEnd) this.onStrokeEnd();
+    }
+  }
+
+  recalculateRoughBox(stroke) {
+    if (!stroke || !stroke.points || stroke.points.length === 0) return;
+    let minX = stroke.points[0].x, minY = stroke.points[0].y;
+    let maxX = stroke.points[0].x, maxY = stroke.points[0].y;
+    for (let i = 1; i < stroke.points.length; i++) {
+      const p = stroke.points[i];
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    }
+    stroke.roughBox = { minX, minY, maxX, maxY };
+  }
+
+  handleEraser(pt) {
+    if (this._lastEraserPt) {
+      const d = Math.hypot(pt.x - this._lastEraserPt.x, pt.y - this._lastEraserPt.y);
+      const stepDist = Math.max(4, this.eraserRadius * 0.6);
+      if (d > stepDist) {
+        const steps = Math.min(10, Math.ceil(d / stepDist));
+        for (let s = 1; s <= steps; s++) {
+          const interpPt = {
+            x: this._lastEraserPt.x + (s / steps) * (pt.x - this._lastEraserPt.x),
+            y: this._lastEraserPt.y + (s / steps) * (pt.y - this._lastEraserPt.y)
+          };
+          this.eraseIntersectingElements(interpPt, this.eraserRadius);
+        }
+      } else {
+        this.eraseIntersectingElements(pt, this.eraserRadius);
+      }
+    } else {
+      this.eraseIntersectingElements(pt, this.eraserRadius);
+    }
+    this._lastEraserPt = { x: pt.x, y: pt.y };
+  }
+
+  eraseStrokesIntersecting(point, radius) {
+    this.eraseIntersectingElements(point, radius);
+  }
+
+  interpolateStrokePoint(p1, p2, t) {
+    return {
+      x: p1.x + t * (p2.x - p1.x),
+      y: p1.y + t * (p2.y - p1.y),
+      pressure: (p1.pressure !== undefined ? p1.pressure : 0.5) + t * ((p2.pressure !== undefined ? p2.pressure : 0.5) - (p1.pressure !== undefined ? p1.pressure : 0.5)),
+      tiltX: (p1.tiltX || 0) + t * ((p2.tiltX || 0) - (p1.tiltX || 0)),
+      tiltY: (p1.tiltY || 0) + t * ((p2.tiltY || 0) - (p1.tiltY || 0))
+    };
+  }
+
+  sliceStrokeWithCircle(stroke, center, radius) {
+    const pts = stroke.points || [];
+    if (pts.length === 0) return { modified: false, pieces: [] };
+    const rSq = radius * radius;
+
+    // Caso 1: Punto único (dot)
+    if (pts.length === 1) {
+      const dSq = (pts[0].x - center.x) ** 2 + (pts[0].y - center.y) ** 2;
+      if (dSq <= rSq) {
+        return { modified: true, pieces: [] };
+      }
+      return { modified: false, pieces: [pts] };
+    }
+
+    // Comprobación rápida de intersección
+    let anyIntersect = false;
+    for (let i = 0; i < pts.length; i++) {
+      if ((pts[i].x - center.x) ** 2 + (pts[i].y - center.y) ** 2 <= rSq) {
+        anyIntersect = true;
+        break;
+      }
+    }
+    if (!anyIntersect) {
+      for (let i = 0; i < pts.length - 1; i++) {
+        if (this.distToSegmentSquared(center, pts[i], pts[i + 1]) <= rSq) {
+          anyIntersect = true;
+          break;
+        }
+      }
+    }
+    if (!anyIntersect) return { modified: false, pieces: [pts] };
+
+    // Caso 2: Intersecta. Proceder a cortar en sub-trazos
+    const pieces = [];
+    let currentPiece = [];
+    const isInside = (p) => ((p.x - center.x) ** 2 + (p.y - center.y) ** 2) <= rSq;
+
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p1In = isInside(p1);
+      const p2In = isInside(p2);
+
+      const vx = p2.x - p1.x;
+      const vy = p2.y - p1.y;
+      const segLenSq = vx * vx + vy * vy;
+
+      if (segLenSq < 1e-6) {
+        if (!p1In && currentPiece.length === 0) currentPiece.push(p1);
+        continue;
+      }
+
+      const dx = p1.x - center.x;
+      const dy = p1.y - center.y;
+      const a = segLenSq;
+      const b = 2 * (dx * vx + dy * vy);
+      const c = (dx * dx + dy * dy) - rSq;
+      const disc = b * b - 4 * a * c;
+
+      if (disc <= 0) {
+        if (!p1In && !p2In) {
+          if (currentPiece.length === 0) currentPiece.push(p1);
+          currentPiece.push(p2);
+        }
+      } else {
+        const sqrtDisc = Math.sqrt(disc);
+        const t1 = (-b - sqrtDisc) / (2 * a);
+        const t2 = (-b + sqrtDisc) / (2 * a);
+        const hasCut = t1 < 1 && t2 > 0;
+
+        if (!hasCut) {
+          if (!p1In && !p2In) {
+            if (currentPiece.length === 0) currentPiece.push(p1);
+            currentPiece.push(p2);
+          }
+        } else {
+          // 1. Parte antes de entrar al círculo (si p1 está fuera)
+          if (!p1In && t1 > 0 && t1 < 1) {
+            if (currentPiece.length === 0) currentPiece.push(p1);
+            const enterPt = this.interpolateStrokePoint(p1, p2, t1);
+            currentPiece.push(enterPt);
+            if (currentPiece.length >= 2) pieces.push(currentPiece);
+            currentPiece = [];
+          } else if (p1In) {
+            if (currentPiece.length >= 2) pieces.push(currentPiece);
+            currentPiece = [];
+          }
+
+          // 2. Parte después de salir del círculo (si p2 está fuera)
+          if (!p2In && t2 > 0 && t2 < 1) {
+            const exitPt = this.interpolateStrokePoint(p1, p2, t2);
+            currentPiece = [exitPt, p2];
+          } else if (p2In) {
+            currentPiece = [];
+          }
+        }
+      }
+    }
+
+    if (currentPiece.length >= 2) pieces.push(currentPiece);
+
+    // Filtrar fragmentos sub-pixel
+    const filteredPieces = [];
+    for (const piece of pieces) {
+      if (piece.length >= 2) {
+        let pieceLen = 0;
+        for (let k = 0; k < piece.length - 1; k++) {
+          pieceLen += Math.hypot(piece[k + 1].x - piece[k].x, piece[k + 1].y - piece[k].y);
+          if (pieceLen >= 2) break;
+        }
+        if (pieceLen >= 2) filteredPieces.push(piece);
+      }
+    }
+
+    const newStrokes = filteredPieces.map((piecePoints, idx) => {
+      const newStroke = {
+        ...stroke,
+        id: 'stroke_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7) + '_' + idx,
+        points: piecePoints
+      };
+      this.recalculateRoughBox(newStroke);
+      return newStroke;
+    });
+
+    return { modified: true, pieces: newStrokes };
+  }
+
+  getTextBoundingBox(textObj) {
+    const fontSize = textObj.fontSize || 16;
+    const lines = String(textObj.text || '').split('\n');
+    const lineHeight = fontSize * 1.35;
+
+    let maxWidth = 0;
+    if (this.ctx) {
+      this.ctx.save();
+      this.ctx.font = `${fontSize}px ${textObj.fontFamily || 'sans-serif'}`;
+      for (const line of lines) {
+        const w = this.ctx.measureText(line).width;
+        if (w > maxWidth) maxWidth = w;
+      }
+      this.ctx.restore();
+    }
+    if (maxWidth === 0) {
+      const maxLen = Math.max(...lines.map(l => l.length), 1);
+      maxWidth = maxLen * fontSize * 0.65;
+    }
+
+    const totalHeight = Math.max(lineHeight, lines.length * lineHeight);
+    return {
+      minX: textObj.x,
+      minY: textObj.y,
+      maxX: textObj.x + maxWidth,
+      maxY: textObj.y + totalHeight,
+      width: maxWidth,
+      height: totalHeight
+    };
+  }
+
+  eraseIntersectingElements(point, radius) {
+    const remainingStrokes = [];
+    const deletedStrokes = [];
+    const remainingTexts = [];
+    const deletedTexts = [];
+    const remainingShapes = [];
+    const deletedShapes = [];
+
+    let modified = false;
+
+    // 1. Borrar trazos de dibujo
+    for (let i = 0; i < this.strokes.length; i++) {
+      const stroke = this.strokes[i];
+
+      if (this.eraseHighlighterOnly && !stroke.isHighlighter) {
+        remainingStrokes.push(stroke);
+        continue;
+      }
+
+      const rb = stroke.roughBox;
+      const margin = (stroke.width || 2) / 2 + radius;
+      if (
+        rb && (
+          point.x < rb.minX - margin ||
+          point.x > rb.maxX + margin ||
+          point.y < rb.minY - margin ||
+          point.y > rb.maxY + margin
+        )
+      ) {
+        remainingStrokes.push(stroke);
+        continue;
+      }
+
+      if (this.eraserMode === 'area') {
+        const sliceResult = this.sliceStrokeWithCircle(stroke, point, margin);
+        if (sliceResult.modified) {
+          modified = true;
+          deletedStrokes.push({ stroke, index: i });
+          if (sliceResult.pieces && sliceResult.pieces.length > 0) {
+            remainingStrokes.push(...sliceResult.pieces);
+          }
+        } else {
+          remainingStrokes.push(stroke);
+        }
+      } else {
+        let intersects = false;
+        const pts = stroke.points || [];
+        if (pts.length === 1) {
+          const dSq = (point.x - pts[0].x) ** 2 + (point.y - pts[0].y) ** 2;
+          if (dSq <= margin * margin) intersects = true;
+        } else {
+          for (let j = 0; j < pts.length - 1; j++) {
+            const dSq = this.distToSegmentSquared(point, pts[j], pts[j + 1]);
+            if (dSq <= margin * margin) {
+              intersects = true;
+              break;
+            }
+          }
+        }
+
+        if (intersects) {
+          modified = true;
+          deletedStrokes.push({ stroke, index: i });
+        } else {
+          remainingStrokes.push(stroke);
+        }
+      }
+    }
+
+    // 2. Borrar textos tipográficos (a menos que esté en modo 'solo subrayador')
+    if (!this.eraseHighlighterOnly && this.texts && this.texts.length > 0) {
+      for (let i = 0; i < this.texts.length; i++) {
+        const textObj = this.texts[i];
+        const bbox = this.getTextBoundingBox(textObj);
+        const margin = radius + 4;
+
+        if (
+          point.x >= bbox.minX - margin &&
+          point.x <= bbox.maxX + margin &&
+          point.y >= bbox.minY - margin &&
+          point.y <= bbox.maxY + margin
+        ) {
+          deletedTexts.push({ text: textObj, index: i });
+          modified = true;
+        } else {
+          remainingTexts.push(textObj);
+        }
+      }
+    } else {
+      remainingTexts.push(...this.texts);
+    }
+
+    // 3. Borrar figuras geométricas (a menos que esté en modo 'solo subrayador')
+    if (!this.eraseHighlighterOnly && this.shapes && this.shapes.length > 0) {
+      for (let i = 0; i < this.shapes.length; i++) {
+        const shape = this.shapes[i];
+        const margin = (shape.strokeWidth || 2) / 2 + radius;
+        const minX = Math.min(shape.x, shape.x + shape.width) - margin;
+        const maxX = Math.max(shape.x, shape.x + shape.width) + margin;
+        const minY = Math.min(shape.y, shape.y + shape.height) - margin;
+        const maxY = Math.max(shape.y, shape.y + shape.height) + margin;
+
+        if (
+          point.x >= minX &&
+          point.x <= maxX &&
+          point.y >= minY &&
+          point.y <= maxY
+        ) {
+          deletedShapes.push({ shape: shape, index: i });
+          modified = true;
+        } else {
+          remainingShapes.push(shape);
+        }
+      }
+    } else {
+      remainingShapes.push(...this.shapes);
+    }
+
+    // Aplicar eliminación y registrar en historial
+    if (modified) {
+      this.strokes = remainingStrokes;
+      this.texts = remainingTexts;
+      this.shapes = remainingShapes;
+
+      if (this._isErasingGesture) {
+        this._eraserModified = true;
+      } else {
+        this.pushAction({
+          type: 'delete_multiple_elements',
+          strokes: deletedStrokes,
+          texts: deletedTexts,
+          shapes: deletedShapes
+        });
+      }
+
+      this.render();
+      if (this.onStrokeEnd) this.onStrokeEnd();
+    }
+  }
+
+  distToSegmentSquared(p, v, w) {
+    const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+    if (l2 === 0) return (p.x - v.x) ** 2 + (p.y - v.y) ** 2;
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return (p.x - (v.x + t * (w.x - v.x))) ** 2 + (p.y - (v.y + t * (w.y - v.y))) ** 2;
+  }
+
+  // --- Adición y Manipulación de Figuras, Texto e Imágenes ---
+
+  addShape(shape) {
+    shape.id = shape.id || 'shape_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    this.shapes.push(shape);
+    this.ensureBoardRect(shape.x, shape.y, shape.x + (shape.width || 0), shape.y + (shape.height || 0));
+    this.pushAction({ type: 'add_shape', shape });
+    this.render();
+    if (this.onStrokeEnd) this.onStrokeEnd();
+    return shape;
+  }
+
+  addText(textObj) {
+    textObj.id = textObj.id || 'text_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    this.texts.push(textObj);
+    this.ensureBoardRect(
+      textObj.x,
+      textObj.y,
+      textObj.x + (textObj.width || 200),
+      textObj.y + (textObj.fontSize || 20) * 2
+    );
+    this.pushAction({ type: 'add_text', text: textObj });
+    this.render();
+    if (this.onStrokeEnd) this.onStrokeEnd();
+    return textObj;
+  }
+
+  addImage(imageObj) {
+    imageObj.id = imageObj.id || 'img_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    
+    if (!imageObj._element && imageObj.dataUrl) {
+      const img = new Image();
+      img.src = imageObj.dataUrl;
+      img.onload = () => this.render();
+      imageObj._element = img;
+    }
+
+    this.images.push(imageObj);
+    this.ensureBoardRect(
+      imageObj.x,
+      imageObj.y,
+      imageObj.x + (imageObj.width || 0),
+      imageObj.y + (imageObj.height || 0)
+    );
+    this.pushAction({ type: 'add_image', image: imageObj });
+    this.render();
+    if (this.onStrokeEnd) this.onStrokeEnd();
+    return imageObj;
+  }
+
+  // --- Deshacer / Rehacer ---
+  _pushToUndo(action) {
+    this.undoStack.push(action);
+    if (this.undoStack.length > this.maxUndoSteps) {
+      this.undoStack.shift();
+    }
+  }
+
+  pushAction(action) {
+    this._pushToUndo(action);
+    this.redoStack = [];
+  }
+
+  undo() {
+    if (this.undoStack.length === 0) return false;
+    const action = this.undoStack.pop();
+
+    if (action.type === 'add_stroke') {
+      const idx = this.strokes.findIndex(s => s.id === action.stroke.id);
+      if (idx !== -1) this.strokes.splice(idx, 1);
+      this.redoStack.push(action);
+    } else if (action.type === 'delete_multiple_elements') {
+      if (action.strokes) {
+        for (const item of action.strokes) {
+          this.strokes.splice(item.index, 0, item.stroke);
+        }
+      }
+      if (action.texts) {
+        for (const item of action.texts) {
+          this.texts.splice(item.index, 0, item.text);
+        }
+      }
+      if (action.shapes) {
+        for (const item of action.shapes) {
+          this.shapes.splice(item.index, 0, item.shape);
+        }
+      }
+      this.redoStack.push(action);
+    } else if (action.type === 'eraser_stroke') {
+      this.strokes = [...action.oldStrokes];
+      this.texts = [...action.oldTexts];
+      this.shapes = [...action.oldShapes];
+      this.redoStack.push(action);
+    } else if (action.type === 'delete_multiple_strokes') {
+      for (const item of action.strokes) {
+        this.strokes.splice(item.index, 0, item.stroke);
+      }
+      this.redoStack.push(action);
+    } else if (action.type === 'add_shape') {
+      const idx = this.shapes.findIndex(sh => sh.id === action.shape.id);
+      if (idx !== -1) this.shapes.splice(idx, 1);
+      this.redoStack.push(action);
+    } else if (action.type === 'add_text') {
+      const idx = this.texts.findIndex(t => t.id === action.text.id);
+      if (idx !== -1) this.texts.splice(idx, 1);
+      this.redoStack.push(action);
+    } else if (action.type === 'add_image') {
+      const idx = this.images.findIndex(im => im.id === action.image.id);
+      if (idx !== -1) this.images.splice(idx, 1);
+      this.redoStack.push(action);
+    } else if (action.type === 'replace_strokes_with_text') {
+      // Compatibilidad con documentos antiguos: restaurar trazos sustituidos por texto
+      const idx = this.texts.findIndex(t => t.id === action.text.id);
+      if (idx !== -1) this.texts.splice(idx, 1);
+      for (const item of action.deletedStrokes) {
+        this.strokes.splice(item.index, 0, item.stroke);
+      }
+      this.redoStack.push(action);
+    }
+
+    this.render();
+    if (this.onStrokeEnd) this.onStrokeEnd();
+    return true;
+  }
+
+  redo() {
+    if (this.redoStack.length === 0) return false;
+    const action = this.redoStack.pop();
+
+    if (action.type === 'add_stroke') {
+      this.strokes.push(action.stroke);
+      this._pushToUndo(action);
+    } else if (action.type === 'delete_multiple_elements') {
+      if (action.strokes) {
+        const idsToDelete = new Set(action.strokes.map(s => s.stroke.id));
+        this.strokes = this.strokes.filter(s => !idsToDelete.has(s.id));
+      }
+      if (action.texts) {
+        const idsToDelete = new Set(action.texts.map(t => t.text.id));
+        this.texts = this.texts.filter(t => !idsToDelete.has(t.id));
+      }
+      if (action.shapes) {
+        const idsToDelete = new Set(action.shapes.map(sh => sh.shape.id));
+        this.shapes = this.shapes.filter(sh => !idsToDelete.has(sh.id));
+      }
+      this._pushToUndo(action);
+    } else if (action.type === 'eraser_stroke') {
+      this.strokes = [...action.newStrokes];
+      this.texts = [...action.newTexts];
+      this.shapes = [...action.newShapes];
+      this._pushToUndo(action);
+    } else if (action.type === 'delete_multiple_strokes') {
+      const idsToDelete = new Set(action.strokes.map(s => s.stroke.id));
+      this.strokes = this.strokes.filter(s => !idsToDelete.has(s.id));
+      this._pushToUndo(action);
+    } else if (action.type === 'add_shape') {
+      this.shapes.push(action.shape);
+      this._pushToUndo(action);
+    } else if (action.type === 'add_text') {
+      this.texts.push(action.text);
+      this._pushToUndo(action);
+    } else if (action.type === 'add_image') {
+      this.images.push(action.image);
+      this._pushToUndo(action);
+    } else if (action.type === 'replace_strokes_with_text') {
+      // Compatibilidad con documentos antiguos
+      const idsToDelete = new Set(action.deletedStrokes.map(s => s.stroke.id));
+      this.strokes = this.strokes.filter(s => !idsToDelete.has(s.id));
+      this.texts.push(action.text);
+      this._pushToUndo(action);
+    }
+
+    this.render();
+    if (this.onStrokeEnd) this.onStrokeEnd();
+    return true;
+  }
+
+  clearAll() {
+    if (this.strokes.length === 0 && this.shapes.length === 0 && this.texts.length === 0 && this.images.length === 0) return;
+    this.strokes = [];
+    this.shapes = [];
+    this.texts = [];
+    this.images = [];
+    this.render();
+    if (this.onStrokeEnd) this.onStrokeEnd();
+  }
+
+  // --- Renderizado Multicapa ---
+  render() {
+    const ctx = this.ctx;
+    if (!ctx || !this.canvas) return;
+    const isNodeEnv = typeof window === 'undefined';
+    const dpr = isNodeEnv ? 1 : (this.dpr || Math.min(Math.max(window.devicePixelRatio || 1, 2), 3));
+
+    // Resetear matriz de transformación para limpiar el búfer completo nativo
+    if (typeof ctx.setTransform === 'function') {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    ctx.save();
+    if (typeof ctx.scale === 'function' && dpr !== 1) {
+      ctx.scale(dpr, dpr);
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // 1. Capa 0: Fondo de Hoja (Blanco, Rayado, Cuadrícula 5mm, Puntos)
+    this.renderBackground(ctx);
+
+    // 2. Capa 1: Imágenes incrustadas
+    this.renderImages(ctx);
+
+    // 3. Capa 2: Subrayadores (con modo de fusión multiply, por debajo de la tinta)
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    for (const stroke of this.strokes) {
+      if (stroke.isHighlighter && (!stroke.roughBox || this.isElementVisible(stroke.roughBox, stroke.width + 30))) {
+        this.drawStroke(ctx, stroke);
+      }
+    }
+    if (this.currentStroke && this.currentStroke.isHighlighter) {
+      this.drawStroke(ctx, this.currentStroke);
+    }
+    ctx.restore();
+
+    // 4. Capa 3: Figuras Geométricas y Tinta (Lápiz, Rotulador, Pincel)
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Renderizar figuras con culling
+    for (const shape of this.shapes) {
+      const shapeBox = {
+        minX: Math.min(shape.x, shape.x + shape.width),
+        minY: Math.min(shape.y, shape.y + shape.height),
+        maxX: Math.max(shape.x, shape.x + shape.width),
+        maxY: Math.max(shape.y, shape.y + shape.height)
+      };
+      if (this.isElementVisible(shapeBox, (shape.strokeWidth || 2) + 30)) {
+        this.drawShape(ctx, shape);
+      }
+    }
+
+    // Renderizar trazos de tinta con culling
+    for (const stroke of this.strokes) {
+      if (!stroke.isHighlighter && (!stroke.roughBox || this.isElementVisible(stroke.roughBox, stroke.width + 30))) {
+        this.drawStroke(ctx, stroke);
+      }
+    }
+    if (this.currentStroke && !this.currentStroke.isHighlighter) {
+      this.drawStroke(ctx, this.currentStroke);
+    }
+    ctx.restore();
+
+    // 5. Capa 4: Cajas de Texto con culling
+    ctx.save();
+    for (const textObj of this.texts) {
+      const textBox = this.getTextBoundingBox(textObj);
+      if (this.isElementVisible(textBox, 30)) {
+        this.drawText(ctx, textObj);
+      }
+    }
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  renderBackground(ctx) {
+    const width = this.logicalWidth;
+    const height = this.logicalHeight;
+
+    ctx.save();
+    if (this.isCover && this.coverData) {
+      CoverDesigner.renderCover(ctx, width, height, this.coverData);
+      ctx.restore();
+      return;
+    }
+
+    const bgColor = this.paperColor || '#ffffff';
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, width, height);
+
+    if (this.backgroundImage) {
+      if (!this._bgImgElement) {
+        const img = new Image();
+        img.src = this.backgroundImage;
+        img.onload = () => this.render();
+        this._bgImgElement = img;
+      }
+      if (this._bgImgElement.complete && this._bgImgElement.naturalWidth > 0) {
+        ctx.drawImage(this._bgImgElement, 0, 0, width, height);
+      }
+      ctx.restore();
+      return;
+    }
+
+    const pattern = this.backgroundPattern || (this.format === 'a4' ? 'ruled' : 'dots');
+    this.drawPatternBackground(ctx, width, height, pattern, bgColor);
+    ctx.restore();
+  }
+
+  getPatternDrawBounds(width, height, gap = 24) {
+    let x0 = 0;
+    let y0 = 0;
+    let x1 = width;
+    let y1 = height;
+    if (this.isInfiniteBoard()) {
+      const vr = this.getVisibleRect();
+      if (vr) {
+        const pad = Math.max(gap * 2, 64);
+        x0 = Math.max(0, Math.floor((vr.minX - pad) / gap) * gap);
+        y0 = Math.max(0, Math.floor((vr.minY - pad) / gap) * gap);
+        x1 = Math.min(width, Math.ceil((vr.maxX + pad) / gap) * gap);
+        y1 = Math.min(height, Math.ceil((vr.maxY + pad) / gap) * gap);
+      }
+    }
+    return { x0, y0, x1, y1 };
+  }
+
+  drawPatternBackground(ctx, width, height, pattern, bgColor) {
+    const isDarkPaper = (function(hex) {
+      if (!hex || hex === 'transparent') return false;
+      if (hex.startsWith('#')) {
+        let c = hex.substring(1);
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        const num = parseInt(c, 16);
+        if (isNaN(num)) return false;
+        const r = (num >> 16) & 255;
+        const g = (num >> 8) & 255;
+        const b = num & 255;
+        return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+      }
+      return false;
+    })(bgColor);
+
+    if (pattern === 'ruled') {
+      // Pauta rayada horizontal continua con offset subpixel nítido
+      ctx.strokeStyle = isDarkPaper ? 'rgba(255, 255, 255, 0.2)' : '#cbd5e1';
+      ctx.lineWidth = 1;
+      const lineGap = 32;
+      const topMargin = 75;
+
+      for (let y = topMargin; y < height; y += lineGap) {
+        ctx.beginPath();
+        ctx.moveTo(0, y + 0.5);
+        ctx.lineTo(width, y + 0.5);
+        ctx.stroke();
+      }
+
+      // Margen izquierdo rojo estilo cuaderno escolar
+      ctx.strokeStyle = isDarkPaper ? 'rgba(248, 113, 113, 0.45)' : '#fca5a5';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(68.5, 0);
+      ctx.lineTo(68.5, height);
+      ctx.stroke();
+
+    } else if (pattern === 'grid') {
+      // Cuadrícula técnica de 5 mm (~20 px); en pizarra infinita solo el viewport
+      ctx.strokeStyle = isDarkPaper ? 'rgba(255, 255, 255, 0.15)' : '#e2e8f0';
+      ctx.lineWidth = 1;
+      const gap = 20;
+      const { x0, y0, x1, y1 } = this.getPatternDrawBounds(width, height, gap);
+
+      for (let x = x0; x <= x1; x += gap) {
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, y0);
+        ctx.lineTo(x + 0.5, y1);
+        ctx.stroke();
+      }
+
+      for (let y = y0; y <= y1; y += gap) {
+        ctx.beginPath();
+        ctx.moveTo(x0, y + 0.5);
+        ctx.lineTo(x1, y + 0.5);
+        ctx.stroke();
+      }
+
+    } else if (pattern === 'dots') {
+      // Trama de puntos (Bullet journal / Pizarra infinita: solo área visible)
+      ctx.fillStyle = isDarkPaper ? 'rgba(255, 255, 255, 0.25)' : '#94a3b8';
+      const gap = 24;
+      const { x0, y0, x1, y1 } = this.getPatternDrawBounds(width, height, gap);
+      const startX = Math.max(gap, x0 || gap);
+      const startY = Math.max(gap, y0 || gap);
+      for (let x = startX; x < x1; x += gap) {
+        for (let y = startY; y < y1; y += gap) {
+          ctx.beginPath();
+          ctx.arc(x, y, 1.25, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+    } else if (pattern === 'music') {
+      // Partitura musical: pentagramas de 5 líneas con llaves/líneas de compás
+      const staffLineGap = 8;
+      const staffSpacing = 48;
+      const staffHeight = staffLineGap * 4; // 32px
+      const topMargin = 60;
+      const marginX = 48;
+      const staffStroke = isDarkPaper ? 'rgba(255, 255, 255, 0.25)' : '#94a3b8';
+
+      for (let staffY = topMargin; staffY + staffHeight < height - 40; staffY += (staffHeight + staffSpacing)) {
+        // Línea vertical de cierre a la izquierda y derecha
+        ctx.strokeStyle = staffStroke;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(marginX + 0.5, staffY + 0.5);
+        ctx.lineTo(marginX + 0.5, staffY + staffHeight + 0.5);
+        ctx.moveTo(width - marginX + 0.5, staffY + 0.5);
+        ctx.lineTo(width - marginX + 0.5, staffY + staffHeight + 0.5);
+        ctx.stroke();
+
+        // 5 líneas horizontales del pentagrama
+        ctx.lineWidth = 1;
+        for (let line = 0; line < 5; line++) {
+          const y = staffY + line * staffLineGap;
+          ctx.beginPath();
+          ctx.moveTo(marginX, y + 0.5);
+          ctx.lineTo(width - marginX, y + 0.5);
+          ctx.stroke();
+        }
+      }
+
+    } else if (pattern === 'millimeter') {
+      // Papel milimetrado técnico de precisión (jerarquía de 1mm, 5mm y 10mm)
+      const fineStep = 4;
+      const medStep = 20;
+      const majorStep = 40;
+
+      for (let x = 0; x <= width; x += fineStep) {
+        ctx.beginPath();
+        if (x % majorStep === 0) {
+          ctx.strokeStyle = isDarkPaper ? 'rgba(255, 255, 255, 0.28)' : '#94a3b8';
+          ctx.lineWidth = 1.2;
+        } else if (x % medStep === 0) {
+          ctx.strokeStyle = isDarkPaper ? 'rgba(255, 255, 255, 0.16)' : '#cbd5e1';
+          ctx.lineWidth = 0.8;
+        } else {
+          ctx.strokeStyle = isDarkPaper ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9';
+          ctx.lineWidth = 0.5;
+        }
+        ctx.moveTo(x + 0.5, 0);
+        ctx.lineTo(x + 0.5, height);
+        ctx.stroke();
+      }
+
+      for (let y = 0; y <= height; y += fineStep) {
+        ctx.beginPath();
+        if (y % majorStep === 0) {
+          ctx.strokeStyle = isDarkPaper ? 'rgba(255, 255, 255, 0.28)' : '#94a3b8';
+          ctx.lineWidth = 1.2;
+        } else if (y % medStep === 0) {
+          ctx.strokeStyle = isDarkPaper ? 'rgba(255, 255, 255, 0.16)' : '#cbd5e1';
+          ctx.lineWidth = 0.8;
+        } else {
+          ctx.strokeStyle = isDarkPaper ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9';
+          ctx.lineWidth = 0.5;
+        }
+        ctx.moveTo(0, y + 0.5);
+        ctx.lineTo(width, y + 0.5);
+        ctx.stroke();
+      }
+
+    } else if (pattern === 'cornell') {
+      // Método Cornell: encabezado, columna de ideas (cue), cuerpo de apuntes y resumen
+      const cueX = Math.round(width * 0.28);
+      const headerY = 70;
+      const summaryY = height - 140;
+      const lineGap = 28;
+
+      // Líneas regladas para notas y apuntes en el cuerpo
+      ctx.strokeStyle = isDarkPaper ? 'rgba(255, 255, 255, 0.16)' : '#e2e8f0';
+      ctx.lineWidth = 1;
+      for (let y = headerY + lineGap; y < summaryY; y += lineGap) {
+        ctx.beginPath();
+        ctx.moveTo(cueX, y + 0.5);
+        ctx.lineTo(width, y + 0.5);
+        ctx.stroke();
+      }
+
+      // Líneas divisorias principales (Header, Columna izquierda, Resumen)
+      ctx.strokeStyle = isDarkPaper ? 'rgba(255, 255, 255, 0.35)' : '#94a3b8';
+      ctx.lineWidth = 1.5;
+
+      // Cabecera superior
+      ctx.beginPath();
+      ctx.moveTo(0, headerY + 0.5);
+      ctx.lineTo(width, headerY + 0.5);
+      ctx.stroke();
+
+      // Columna vertical de palabras clave
+      ctx.beginPath();
+      ctx.moveTo(cueX + 0.5, headerY);
+      ctx.lineTo(cueX + 0.5, summaryY);
+      ctx.stroke();
+
+      // Divisoria horizontal de resumen inferior
+      ctx.beginPath();
+      ctx.moveTo(0, summaryY + 0.5);
+      ctx.lineTo(width, summaryY + 0.5);
+      ctx.stroke();
+    }
+  }
+
+  renderImages(ctx) {
+    for (const imgItem of this.images) {
+      if (imgItem._element && imgItem._element.complete) {
+        const imgBox = {
+          minX: imgItem.x,
+          minY: imgItem.y,
+          maxX: imgItem.x + imgItem.width,
+          maxY: imgItem.y + imgItem.height
+        };
+        if (!this.isElementVisible(imgBox, 30)) continue;
+
+        ctx.save();
+        ctx.translate(imgItem.x + imgItem.width / 2, imgItem.y + imgItem.height / 2);
+        if (imgItem.rotation) ctx.rotate(imgItem.rotation);
+        ctx.drawImage(imgItem._element, -imgItem.width / 2, -imgItem.height / 2, imgItem.width, imgItem.height);
+        ctx.restore();
+      }
+    }
+  }
+
+  drawShape(ctx, shape) {
+    ctx.save();
+    ctx.strokeStyle = shape.strokeColor || '#1e293b';
+    ctx.lineWidth = shape.strokeWidth || 2;
+    ctx.fillStyle = shape.fillColor || 'transparent';
+
+    if (shape.type === 'rectangle') {
+      ctx.beginPath();
+      ctx.rect(shape.x, shape.y, shape.width, shape.height);
+      if (shape.fillColor && shape.fillColor !== 'transparent') ctx.fill();
+      ctx.stroke();
+
+    } else if (shape.type === 'square') {
+      ctx.beginPath();
+      const side = Math.min(Math.abs(shape.width), Math.abs(shape.height));
+      const sW = shape.width >= 0 ? side : -side;
+      const sH = shape.height >= 0 ? side : -side;
+      ctx.rect(shape.x, shape.y, sW, sH);
+      if (shape.fillColor && shape.fillColor !== 'transparent') ctx.fill();
+      ctx.stroke();
+
+    } else if (shape.type === 'circle') {
+      ctx.beginPath();
+      const radiusX = Math.abs(shape.width) / 2;
+      const radiusY = Math.abs(shape.height) / 2;
+      const centerX = shape.x + shape.width / 2;
+      const centerY = shape.y + shape.height / 2;
+      ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+      if (shape.fillColor && shape.fillColor !== 'transparent') ctx.fill();
+      ctx.stroke();
+
+    } else if (shape.type === 'triangle') {
+      ctx.beginPath();
+      const topX = shape.x + shape.width / 2;
+      const topY = shape.y;
+      const rightX = shape.x + shape.width;
+      const rightY = shape.y + shape.height;
+      const leftX = shape.x;
+      const leftY = shape.y + shape.height;
+      ctx.moveTo(topX, topY);
+      ctx.lineTo(rightX, rightY);
+      ctx.lineTo(leftX, leftY);
+      ctx.closePath();
+      if (shape.fillColor && shape.fillColor !== 'transparent') ctx.fill();
+      ctx.stroke();
+
+    } else if (shape.type === 'line') {
+      ctx.beginPath();
+      ctx.moveTo(shape.x, shape.y);
+      ctx.lineTo(shape.x + shape.width, shape.y + shape.height);
+      ctx.stroke();
+
+    } else if (shape.type === 'arrow') {
+      const fromX = shape.x;
+      const fromY = shape.y;
+      const toX = shape.x + shape.width;
+      const toY = shape.y + shape.height;
+
+      const headLen = Math.min(24, Math.max(12, shape.strokeWidth * 4));
+      const angle = Math.atan2(toY - fromY, toX - fromX);
+
+      // Línea principal
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.stroke();
+
+      // Punta de flecha
+      ctx.beginPath();
+      ctx.moveTo(toX, toY);
+      ctx.lineTo(toX - headLen * Math.cos(angle - Math.PI / 6), toY - headLen * Math.sin(angle - Math.PI / 6));
+      ctx.moveTo(toX, toY);
+      ctx.lineTo(toX - headLen * Math.cos(angle + Math.PI / 6), toY - headLen * Math.sin(angle + Math.PI / 6));
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  drawText(ctx, textObj) {
+    ctx.save();
+    ctx.font = `${textObj.fontSize || 16}px ${textObj.fontFamily || 'sans-serif'}`;
+    ctx.fillStyle = textObj.color || '#1e293b';
+    ctx.textBaseline = 'top';
+
+    const lines = String(textObj.text || '').split('\n');
+    const lineHeight = (textObj.fontSize || 16) * 1.35;
+
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], textObj.x, textObj.y + i * lineHeight);
+    }
+    ctx.restore();
+  }
+
+  drawStroke(ctx, stroke) {
+    const pts = stroke.points;
+    if (!pts || pts.length === 0) return;
+
+    ctx.save();
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.width;
+    
+    const concentration = stroke.concentration !== undefined ? stroke.concentration : 1.0;
+    const baseOpacity = stroke.opacity !== undefined ? stroke.opacity : 1.0;
+    ctx.globalAlpha = Math.max(0.05, Math.min(1.0, baseOpacity * concentration));
+    
+    ctx.lineCap = stroke.isHighlighter ? 'square' : 'round';
+    ctx.lineJoin = 'round';
+
+    if (pts.length === 1) {
+      ctx.beginPath();
+      ctx.arc(pts[0].x, pts[0].y, stroke.width / 2, 0, Math.PI * 2);
+      ctx.fillStyle = stroke.color;
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    if (stroke.isStraight || pts.length === 2) {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
+    // Curvas Bézier cúbicas continuas con interpolación matemática Splines Catmull-Rom
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+
+    const n = pts.length;
+    for (let i = 0; i < n - 1; i++) {
+      const p0 = i > 0 ? pts[i - 1] : { x: 2 * pts[0].x - pts[1].x, y: 2 * pts[0].y - pts[1].y };
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = (i + 2 < n) ? pts[i + 2] : { x: 2 * p2.x - p1.x, y: 2 * p2.y - p1.y };
+
+      // Conversión canónica Catmull-Rom (tensión = 0.5) a Bézier cúbica
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+    }
+
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Helper para cálculo matemático de Splines Catmull-Rom a Bézier cúbica
+  computeCatmullRomBezier(pts) {
+    if (!pts || pts.length < 2) return [];
+    const segments = [];
+    const n = pts.length;
+    for (let i = 0; i < n - 1; i++) {
+      const p0 = i > 0 ? pts[i - 1] : { x: 2 * pts[0].x - pts[1].x, y: 2 * pts[0].y - pts[1].y };
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = (i + 2 < n) ? pts[i + 2] : { x: 2 * p2.x - p1.x, y: 2 * p2.y - p1.y };
+
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+      segments.push({
+        p1,
+        cp1: { x: cp1x, y: cp1y },
+        cp2: { x: cp2x, y: cp2y },
+        p2
+      });
+    }
+    return segments;
+  }
+
+  // Cálculo del Bounding Box exacto para exportación recortada en Pizarras
+  getBoundingBox() {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let hasContent = false;
+
+    // 1. Trazos
+    for (const stroke of this.strokes) {
+      if (stroke.roughBox) {
+        hasContent = true;
+        minX = Math.min(minX, stroke.roughBox.minX - stroke.width);
+        minY = Math.min(minY, stroke.roughBox.minY - stroke.width);
+        maxX = Math.max(maxX, stroke.roughBox.maxX + stroke.width);
+        maxY = Math.max(maxY, stroke.roughBox.maxY + stroke.width);
+      }
+    }
+
+    // 2. Figuras
+    for (const sh of this.shapes) {
+      hasContent = true;
+      const x2 = sh.x + sh.width;
+      const y2 = sh.y + sh.height;
+      minX = Math.min(minX, Math.min(sh.x, x2));
+      minY = Math.min(minY, Math.min(sh.y, y2));
+      maxX = Math.max(maxX, Math.max(sh.x, x2));
+      maxY = Math.max(maxY, Math.max(sh.y, y2));
+    }
+
+    // 3. Textos
+    for (const tx of this.texts) {
+      hasContent = true;
+      minX = Math.min(minX, tx.x);
+      minY = Math.min(minY, tx.y);
+      maxX = Math.max(maxX, tx.x + (tx.width || 200));
+      maxY = Math.max(maxY, tx.y + (tx.fontSize || 20) * 2);
+    }
+
+    // 4. Imágenes
+    for (const img of this.images) {
+      hasContent = true;
+      minX = Math.min(minX, img.x);
+      minY = Math.min(minY, img.y);
+      maxX = Math.max(maxX, img.x + img.width);
+      maxY = Math.max(maxY, img.y + img.height);
+    }
+
+    if (!hasContent) {
+      return { minX: 0, minY: 0, maxX: this.logicalWidth, maxY: this.logicalHeight, width: this.logicalWidth, height: this.logicalHeight };
+    }
+
+    // Margen de cortesía de 40 px
+    const padding = 40;
+    const cropMinX = Math.max(0, Math.floor(minX - padding));
+    const cropMinY = Math.max(0, Math.floor(minY - padding));
+    const cropMaxX = Math.min(this.logicalWidth, Math.ceil(maxX + padding));
+    const cropMaxY = Math.min(this.logicalHeight, Math.ceil(maxY + padding));
+
+    return {
+      minX: cropMinX,
+      minY: cropMinY,
+      maxX: cropMaxX,
+      maxY: cropMaxY,
+      width: Math.max(100, cropMaxX - cropMinX),
+      height: Math.max(100, cropMaxY - cropMinY)
+    };
+  }
+
+  // Miniatura visual para tarjetas y carrusel de páginas
+  generateThumbnail(thumbWidth = 280, thumbHeight = 190) {
+    const thumbCanvas = document.createElement('canvas');
+    thumbCanvas.width = thumbWidth;
+    thumbCanvas.height = thumbHeight;
+    const tCtx = thumbCanvas.getContext('2d');
+
+    tCtx.fillStyle = '#ffffff';
+    tCtx.fillRect(0, 0, thumbWidth, thumbHeight);
+
+    const scale = Math.min(thumbWidth / this.logicalWidth, thumbHeight / this.logicalHeight);
+    const offsetX = (thumbWidth - this.logicalWidth * scale) / 2;
+    const offsetY = (thumbHeight - this.logicalHeight * scale) / 2;
+
+    tCtx.save();
+    tCtx.translate(offsetX, offsetY);
+    tCtx.scale(scale, scale);
+
+    this.renderBackground(tCtx);
+    this.renderImages(tCtx);
+
+    tCtx.globalCompositeOperation = 'multiply';
+    for (const stroke of this.strokes) {
+      if (stroke.isHighlighter) this.drawStroke(tCtx, stroke);
+    }
+
+    tCtx.globalCompositeOperation = 'source-over';
+    for (const shape of this.shapes) this.drawShape(tCtx, shape);
+    for (const stroke of this.strokes) {
+      if (!stroke.isHighlighter) this.drawStroke(tCtx, stroke);
+    }
+    for (const text of this.texts) this.drawText(tCtx, text);
+
+    tCtx.restore();
+    return thumbCanvas.toDataURL('image/jpeg', 0.85);
+  }
+
+  // Renderizar los datos de una página específica en cualquier elemento canvas con nitidez HiDPI
+  renderPageToCanvas(canvasEl, pageData) {
+    if (!canvasEl || !pageData) return;
+    const isNotebook = this.format === 'a4' || pageData.isCover || !pageData.format || pageData.format === 'a4';
+    const logicalW = isNotebook ? 794 : 1800;
+    const logicalH = isNotebook ? 1123 : 1200;
+    const isNodeEnv = typeof window === 'undefined';
+    const dpr = isNodeEnv ? 1 : (this.dpr || Math.min(Math.max(window.devicePixelRatio || 1, 2), 3));
+
+    const targetW = Math.round(logicalW * dpr);
+    const targetH = Math.round(logicalH * dpr);
+    if (canvasEl.width !== targetW || canvasEl.height !== targetH) {
+      canvasEl.width = targetW;
+      canvasEl.height = targetH;
+    }
+    if (canvasEl.style) {
+      canvasEl.style.width = `${logicalW}px`;
+      canvasEl.style.height = `${logicalH}px`;
+    }
+
+    const ctx = canvasEl.getContext('2d');
+    if (typeof ctx.setTransform === 'function') {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+
+    ctx.save();
+    if (typeof ctx.scale === 'function' && dpr !== 1) {
+      ctx.scale(dpr, dpr);
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // 1. Fondo (Portada o Patrón de Hoja o Imagen PDF)
+    if (pageData.isCover || pageData.template) {
+      CoverDesigner.renderCover(ctx, logicalW, logicalH, pageData.coverData || pageData);
+    } else {
+      const bgColor = pageData.paperColor || '#ffffff';
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, logicalW, logicalH);
+
+      if (pageData.backgroundImage) {
+        let bgImg = pageData._bgImgElement;
+        if (!bgImg) {
+          bgImg = new Image();
+          bgImg.src = pageData.backgroundImage;
+          bgImg.onload = () => {
+            this.renderPageToCanvas(canvasEl, pageData);
+          };
+          pageData._bgImgElement = bgImg;
+        }
+        if (bgImg.complete && bgImg.naturalWidth > 0) {
+          ctx.drawImage(bgImg, 0, 0, logicalW, logicalH);
+        }
+      } else {
+        const pattern = pageData.backgroundPattern || (this.format === 'a4' ? 'ruled' : 'dots');
+        this.drawPatternBackground(ctx, logicalW, logicalH, pattern, bgColor);
+      }
+    }
+
+    // 2. Imágenes
+    for (const imgItem of (pageData.images || [])) {
+      if (imgItem._element && imgItem._element.complete) {
+        ctx.save();
+        ctx.translate(imgItem.x + imgItem.width / 2, imgItem.y + imgItem.height / 2);
+        if (imgItem.rotation) ctx.rotate(imgItem.rotation);
+        ctx.drawImage(imgItem._element, -imgItem.width / 2, -imgItem.height / 2, imgItem.width, imgItem.height);
+        ctx.restore();
+      }
+    }
+
+    // 3. Subrayadores
+    ctx.globalCompositeOperation = 'multiply';
+    for (const stroke of (pageData.strokes || [])) {
+      if (stroke.isHighlighter) this.drawStroke(ctx, stroke);
+    }
+
+    // 4. Figuras y Trazos normales
+    ctx.globalCompositeOperation = 'source-over';
+    for (const shape of (pageData.shapes || [])) {
+      this.drawShape(ctx, shape);
+    }
+    for (const stroke of (pageData.strokes || [])) {
+      if (!stroke.isHighlighter) this.drawStroke(ctx, stroke);
+    }
+
+    // 5. Textos
+    for (const text of (pageData.texts || [])) {
+      this.drawText(ctx, text);
+    }
+
+    ctx.restore();
+  }
+}
